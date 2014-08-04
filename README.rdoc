@@ -35,7 +35,7 @@ With a basic +config.ru+ like this:
 
 Change +config.ru+ to:
 
-  require 'rack-unreloader'
+  require 'rack/unreloader'
   Unreloader = Rack::Unreloader.new{App}
   require 'roda'
   Unreloader.require './app.rb'
@@ -53,7 +53,7 @@ code requires the +roda+ library normally before requiring +app.rb+ using
 However, if +app.rb+ requires more than a single file, it is more 
 practical to tell <tt>Rack::Unreloader</tt> to only unload specific subclasses:
 
-  require 'rack-unreloader'
+  require 'rack/unreloader'
   Unreloader = Rack::Unreloader.new(:subclasses=>%w'Roda'){App}
   Unreloader.require './app.rb'
   run Unreloader
@@ -89,7 +89,7 @@ The reason that the <tt>Rack::Unreloader</tt> instance is assigned to a constant
 It's even a better idea to require this dependency manually in +config.ru+,
 before requiring +app.rb+:
 
-  require 'rack-unreloader'
+  require 'rack/unreloader'
   Unreloader = Rack::Unreloader.new(:subclasses=>%w'Roda Sequel::Model'){App}
   Unreloader.require './models.rb'
   Unreloader.require './app.rb'
@@ -104,7 +104,7 @@ Assuming you use +RACK_ENV+ to determine development mode, you can change
 +config.ru+ to:
 
   if ENV['RACK_ENV'] == 'development'
-    require 'rack-unreloader'
+    require 'rack/unreloader'
     Unreloader = Rack::Unreloader.new{App}
     Unreloader.require './models.rb'
     Unreloader.require './app.rb'
