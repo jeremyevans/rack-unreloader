@@ -1,0 +1,177 @@
+= Rack::Unreloader
+
+Rack::Unreloader is a rack library that reloads application files when it
+detects changes, unloading constants defined in those files before reloading.
+Like other rack libraries for reloading, this can make application development
+much faster, as you don't need to restart the whole application when you change
+a single file.  Unlike most other rack libraries for reloading, this unloads
+constants before requiring files, avoiding issues when loading a file is not
+idempotent.
+
+== Installation
+
+  gem install rack-unreloader
+
+== Source Code
+
+Source code is available on GitHub at https://github.com/jeremyevans/rack-unreloader
+
+== Basic Usage
+
+Assuming a basic web application stored in +app.rb+:
+
+  require 'roda'
+
+  class App < Roda
+    route do |r|
+      "Hello world!"
+    end
+  end
+
+With a basic +config.ru+ like this:
+
+  require './app.rb'
+  run App
+
+Change +config.ru+ to:
+
+  require 'rack-unreloader'
+  Unreloader = Rack::Unreloader.new{App}
+  require 'roda'
+  Unreloader.require './app.rb'
+  run Unreloader
+
+The block you pass to Rack::Unreloader.new should return the rack application
+to use.  If you make any changes to +app.rb+, <tt>Rack::Unreloader</tt> will remove any
+constants defined by requiring +app.rb+, and rerequire the file.
+
+Note that this causes problems if +app.rb+ loads any new libraries that define
+constants, as it will unload those constants first.  This is why the example
+code requires the +roda+ library normally before requiring +app.rb+ using
+<tt>Rack::Unreloader</tt>.
+
+However, if +app.rb+ requires more than a single file, it is more 
+practical to tell <tt>Rack::Unreloader</tt> to only unload specific subclasses:
+
+  require 'rack-unreloader'
+  Unreloader = Rack::Unreloader.new(:subclasses=>%w'Roda'){App}
+  Unreloader.require './app.rb'
+  run Unreloader
+  
+When the +:subclasses+ option is given, only subclasses of the given classes
+will be unloaded before reloading the file.  It is recommended that
+you use a +:subclasses+ option when using <tt>Rack::Unreloader</tt>.
+
+== Dependency Handling
+
+If your +app.rb+ requires a +models.rb+ file that you also want to get reloaded:
+
+  require 'roda'
+  require './models.rb'
+
+  class App < Roda
+    route do |r|
+      "Hello world!"
+    end
+  end
+
+You can change +app.rb+ from using:
+
+  require './models.rb'
+
+to using:
+
+  Unreloader.require './models.rb'
+
+The reason that the <tt>Rack::Unreloader</tt> instance is assigned to a constant in
++config.ru+ is to make it easy to add reloadable dependencies in this way.
+
+It's even a better idea to require this dependency manually in +config.ru+,
+before requiring +app.rb+:
+
+  require 'rack-unreloader'
+  Unreloader = Rack::Unreloader.new(:subclasses=>%w'Roda Sequel::Model'){App}
+  Unreloader.require './models.rb'
+  Unreloader.require './app.rb'
+  run Unreloader
+
+This way, changing your +app.rb+ file will not reload your +models.rb+ file.
+
+== Only in Development Mode
+
+In general, you are only going to want to run this in development mode.
+Assuming you use +RACK_ENV+ to determine development mode, you can change
++config.ru+ to:
+
+  if ENV['RACK_ENV'] == 'development'
+    require 'rack-unreloader'
+    Unreloader = Rack::Unreloader.new{App}
+    Unreloader.require './models.rb'
+    Unreloader.require './app.rb'
+    run Unreloader
+  else
+    require './app.rb'
+    run App
+  end
+
+If there are dependencies that you don't want to require directly in your
++config.ru+, but you do want to use <tt>Rack::Unreloader</tt> for them in
+development, you can do:
+
+  (defined?(Unreloader) ? Unreloader : Kernel).require './models.rb'
+
+== Modules
+
+This reloader also handles modules.  Since modules do not have superclasses,
+if you are using the +:subclasses+ option to specify specific subclasses, you
+need to specify the module name if you want to reload it:
+
+  Unreloader = Rack::Unreloader.new(:subclasses=>%w'MyModule'){App}
+
+== Requiring
+
+Rack::Unreloader#require is a little different than require in that it takes
+a file glob, not a normal require path.  For that reason, you must specify
+the extension when requiring the file, and it will only look in the current
+directory by default:
+
+  Unreloader.require 'app.rb'
+
+If you want to require a file in a different directory, you need to provide the
+full path:
+
+  Unreloader.require '/path/to/app.rb'
+
+You can use the usual file globbing:
+
+  Unreloader.require 'models/*.rb'
+
+== History
+
+Rack::Unreloader was derived from Padrino's reloader.  It is significantly smaller
+as it cuts out a lot of Padrino-specific code, and it forces the user to manually
+specify what files to monitor.
+
+== Caveats
+
+Unloading constants and reloading files has a ton of corner cases that this
+will not handle correctly.  If it isn't doing what you expect, add a logger:
+
+  Rack::Unreloader.new(:logger=>Logger.new($stdout)){App}
+
+Unloading constants causes issues whenever references to the constant are
+cached anywhere instead of looking up the constant by name.  This is fairly
+common, and using this library can cause a memory leak in such a case.
+
+Approaches that load a fresh environment for every request (or a fresh
+environment anytime there are any changes) are going to be more robust than
+this approach, but probably slower.  Be aware that you are trading robustness
+for speed when using this library.
+
+== License
+
+MIT
+
+== Maintainer
+
+Jeremy Evans <code@jeremyevans.net>
