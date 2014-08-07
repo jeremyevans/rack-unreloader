@@ -94,8 +94,8 @@ module Rack
         return unless @monitor_files.has_key?(file)
         return unless options[:force] || file_changed?(file)
 
-        prepare(file) # might call #safe_load recursively
         log "#{@monitor_files[file] ? 'Reloading' : 'Loading'} #{file}"
+        prepare(file) # might call #safe_load recursively
         begin
           require(file)
           commit(file)
@@ -120,7 +120,10 @@ module Rack
       # Remove a feature if it is being monitored for reloading, so it
       # can be required again.
       def remove_feature(file)
-        $LOADED_FEATURES.delete(file) if @monitor_files.has_key?(file)
+        if @monitor_files.has_key?(file)
+          $LOADED_FEATURES.delete(file)
+          log "Removed feature #{file}"
+        end
       end
 
       # Unload all reloadable constants and features, and clear the list
@@ -128,7 +131,6 @@ module Rack
       def clear!
         @files.keys.each do |file|
           remove(file)
-          remove_feature(file)
         end
         @monitor_files = {}
         @old_entries = {}
@@ -141,17 +143,14 @@ module Rack
         file[:constants].each{|constant| remove_constant(constant)}
         file[:features].each{|feature| remove_feature(feature)}
         @files.delete(name)
+        remove_feature(name) if $LOADED_FEATURES.include?(name)
       end
 
       # Store the currently loaded classes and features, so in case of an error
       # this state can be rolled back to.
       def prepare(name)
         file = remove(name)
-        old_features = Set.new($LOADED_FEATURES)
-        @old_entries[name] = {:constants => all_classes, :features => old_features}
-        features = file && file[:features] || []
-        features.each{|feature| safe_load(feature, :force => true)}
-        remove_feature(name) if old_features.include?(name)
+        @old_entries[name] = {:constants => all_classes, :features => monitored_features}
       end
 
       # Commit the changed state after requiring the the file, recording the new
@@ -159,11 +158,13 @@ module Rack
       def commit(name)
         entry = {
           :constants => new_classes(@old_entries[name][:constants]),
-          :features  => Set.new($LOADED_FEATURES) - @old_entries[name][:features] - [name]
+          :features  => monitored_features - @old_entries[name][:features] - [name]
         }
         @files[name] = entry
         @old_entries.delete(name)
         @monitor_files[name] = modified_at(name)
+        log("New classes in #{name}: #{entry[:constants].to_a.join(' ')}") unless entry[:constants].empty?
+        log("New features in #{name}: #{entry[:features].to_a.join(' ')}") unless entry[:features].empty?
       end
 
       # Rollback the changes made by requiring the file, restoring the previous state.
@@ -173,6 +174,11 @@ module Rack
       end
 
       private
+
+      # The current loaded features that are being monitored
+      def monitored_features
+        Set.new($LOADED_FEATURES) & @monitor_files.keys
+      end
 
       # Return a set of all classes in the ObjectSpace.
       def all_classes

@@ -48,7 +48,7 @@ describe Rack::Unreloader do
   end
 
   def log_match(*logs)
-    logs.length == @logger.length
+    logs.length.should == @logger.length
     logs.zip(@logger).each{|l, log| l.is_a?(String) ? log.should == l : log.should =~ l}
   end
 
@@ -69,7 +69,12 @@ describe Rack::Unreloader do
     ru.call({}).should == [1]
     update_app(code(2))
     ru.call({}).should == [2]
-    log_match(%r{\ALoading.*spec/app\.rb\z}, "Removed constant App", %r{\AReloading.*spec/app\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
   it "it should pickup files added as dependencies" do
@@ -79,9 +84,19 @@ describe Rack::Unreloader do
     ru.call({}).should == [[2], [3]]
     update_app("class App2; def self.call(env) @a end; @a ||= []; @a << 4; end", 'spec/app2.rb')
     ru.call({}).should == [[2], [4]]
-    update_app("RU.require 'spec/app2.rb'; class App; def self.call(env) [@a, App2.call(env)] end; @a ||= []; @a << 2; end")
-    log_match(%r{\ALoading.*spec/app\.rb\z}, "Removed constant App", %r{\AReloading.*spec/app\.rb\z},
-              %r{\ALoading.*spec/app2\.rb\z}, "Removed constant App2", %r{\AReloading.*spec/app2\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ALoading.*spec/app2\.rb\z},
+              %r{\ANew classes in .*spec/app2\.rb: App2\z},
+              %r{\ANew classes in .*spec/app\.rb: (App App2|App2 App)\z},
+              %r{\ANew features in .*spec/app\.rb: .*spec/app2\.rb\z},
+              %r{\AReloading.*spec/app2\.rb\z},
+              "Removed constant App2",
+              %r{\ARemoved feature .*/spec/app2.rb\z},
+              %r{\ANew classes in .*spec/app2\.rb: App2\z}
   end
 
   it "it should support :subclasses option and only unload subclasses of given class" do
@@ -92,35 +107,58 @@ describe Rack::Unreloader do
     update_app("class App2 < App; def self.call(env) @a end; @a ||= []; @a << 4; end", 'spec/app2.rb')
     ru.call({}).should == [[1, 2], [4]]
     update_app("RU.require 'spec/app2.rb'; class App; def self.call(env) [@a, App2.call(env)] end; @a ||= []; @a << 2; end")
-    log_match(%r{\ALoading.*spec/app\.rb\z}, %r{\AReloading.*spec/app\.rb\z},
-              %r{\ALoading.*spec/app2\.rb\z}, "Removed constant App2", %r{\AReloading.*spec/app2\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ALoading.*spec/app2\.rb\z},
+              %r{\ANew classes in .*spec/app2\.rb: App2\z},
+              %r{\ANew classes in .*spec/app\.rb: App2\z},
+              %r{\ANew features in .*spec/app\.rb: .*spec/app2\.rb\z},
+              %r{\AReloading.*spec/app2\.rb\z},
+              "Removed constant App2",
+              %r{\ARemoved feature .*/spec/app2.rb\z},
+              %r{\ANew classes in .*spec/app2\.rb: App2\z}
   end
 
   it "it log invalid constant names in :subclasses options" do
     ru(:subclasses=>%w'1 Object').call({}).should == [1]
     logger.uniq!
-    log_match('"1" is not a valid constant name!', %r{\ALoading.*spec/app\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              '"1" is not a valid constant name!',
+              %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
   it "it should unload modules before reloading similar to classes" do
     ru(:code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).should == [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
     ru.call({}).should == [2]
-    log_match(%r{\ALoading.*spec/app\.rb\z}, "Removed constant App", %r{\AReloading.*spec/app\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
   it "it should unload specific modules by name via :subclasses option" do
     ru(:subclasses=>'App', :code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).should == [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
     ru.call({}).should == [2]
-    log_match(%r{\ALoading.*spec/app\.rb\z}, "Removed constant App", %r{\AReloading.*spec/app\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
   it "it should not unload modules by name if :subclasses option used and module not present" do
     ru(:subclasses=>'Foo', :code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).should == [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
     ru.call({}).should == [1, 2]
-    log_match(%r{\ALoading.*spec/app\.rb\z}, %r{\AReloading.*spec/app\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              %r{\ARemoved feature .*/spec/app.rb\z}
   end
 
   it "it unload partially loaded modules if loading fails, and allow future loading" do
@@ -130,16 +168,54 @@ describe Rack::Unreloader do
     defined?(::App).should == nil
     update_app(code(2))
     ru.call({}).should == [2]
-    log_match(%r{\ALoading.*spec/app\.rb\z}, "Removed constant App", %r{\AReloading.*spec/app\.rb\z},
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app.rb\z},
               %r{\AFailed to load .*spec/app\.rb; removing partially defined constants\z},
-             "Removed constant App", %r{\AReloading.*spec/app\.rb\z})
+              "Removed constant App",
+              %r{\AReloading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
   it "it should unload classes in namespaces" do
     ru(:code=>"class Array::App; def self.call(env) @a end; @a ||= []; @a << 1; end", :block=>proc{Array::App}).call({}).should == [1]
     update_app("class Array::App; def self.call(env) @a end; @a ||= []; @a << 2; end")
     ru.call({}).should == [2]
-    log_match(%r{\ALoading.*spec/app\.rb\z}, "Removed constant Array::App", %r{\AReloading.*spec/app\.rb\z})
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: Array::App\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant Array::App",
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: Array::App\z}
+  end
+
+  it "it should not unload class defined in dependency if already defined in parent" do
+    @ru = Rack::Unreloader.new({:logger=>logger, :cooldown=>0}){App}
+    @ru.reloader.extend ModifiedAt
+    Object.const_set(:RU, @ru)
+    update_app("class App; def self.call(env) @a end; @a ||= []; @a << 2; RU.require 'spec/app2.rb'; end")
+    update_app("class App; @a << 3 end", 'spec/app2.rb')
+    @ru.require 'spec/app.rb'
+    ru.call({}).should == [2, 3]
+    update_app("class App; @a << 4 end", 'spec/app2.rb')
+    ru.call({}).should == [2, 3, 4]
+    update_app("class App; def self.call(env) @a end; @a ||= []; @a << 2; RU.require 'spec/app2.rb'; end")
+    ru.call({}).should == [2, 4]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ALoading.*spec/app2\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\ANew features in .*spec/app\.rb: .*spec/app2\.rb\z},
+              %r{\AReloading.*spec/app2\.rb\z},
+              %r{\ARemoved feature .*/spec/app2.rb\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app2.rb\z},
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ALoading.*spec/app2\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\ANew features in .*spec/app\.rb: .*spec/app2\.rb\z}
   end
 
 end

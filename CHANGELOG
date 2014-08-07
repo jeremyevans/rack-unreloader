@@ -1,3 +1,7 @@
+= HEAD
+
+* Don't unload constants defined in parents when loading dependencies (jeremyevans)
+
 = 0.9.0 (2014-08-04)
 
 * Initial public release
