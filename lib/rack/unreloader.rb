@@ -21,6 +21,11 @@ module Rack
         # with values being the last modified time (or nil if the file has not yet been loaded).
         @monitor_files = {}
 
+        # Hash of procs returning constants defined in files, keyed by absolute path
+        # of file name.  If there is no proc, must call ObjectSpace before and after
+        # loading files to detect changes, which is slower.
+        @constants_defined = {}
+
         # Hash keyed by absolute path of file name, storing constants and other
         # filenames that the key loads.  Values should be hashes with :constants
         # and :features keys, and arrays of values.
@@ -59,7 +64,7 @@ module Rack
 
       # Require the given dependencies, monitoring them for changes.
       # Paths should be a file glob or an array of file globs.
-      def require_dependencies(paths)
+      def require_dependencies(paths, &block)
         options = {:cyclic => true}
         error = nil 
 
@@ -71,6 +76,7 @@ module Rack
           uniq.
           each do |file|
 
+          @constants_defined[file] = block
           @monitor_files[file] = nil
           begin
             safe_load(file, options)
@@ -140,36 +146,58 @@ module Rack
       # by the file.
       def remove(name)
         file = @files[name] || return
-        file[:constants].each{|constant| remove_constant(constant)}
+        remove_constants(name){file[:constants]}
         file[:features].each{|feature| remove_feature(feature)}
         @files.delete(name)
         remove_feature(name) if $LOADED_FEATURES.include?(name)
+      end
+
+      # Remove constants defined in file.  Uses the stored block if there is
+      # one for the file name, or the given block.
+      def remove_constants(name)
+        constants = if pr = @constants_defined[name] 
+          Array(pr.call(name))
+        else
+          yield
+        end
+
+        if constants
+          constants.each{|constant| remove_constant(constant)}
+        end
       end
 
       # Store the currently loaded classes and features, so in case of an error
       # this state can be rolled back to.
       def prepare(name)
         file = remove(name)
-        @old_entries[name] = {:constants => all_classes, :features => monitored_features}
+        @old_entries[name] = {:features => monitored_features}
+
+        unless @constants_defined[name]
+          @old_entries[name][:constants] = all_classes
+        end
       end
 
       # Commit the changed state after requiring the the file, recording the new
       # classes and features added by the file.
       def commit(name)
-        entry = {
-          :constants => new_classes(@old_entries[name][:constants]),
-          :features  => monitored_features - @old_entries[name][:features] - [name]
-        }
+        entry = {:features  => monitored_features - @old_entries[name][:features] - [name]}
+        unless constants_defined = @constants_defined[name]
+          entry[:constants] = new_classes(@old_entries[name][:constants])
+        end
+
         @files[name] = entry
         @old_entries.delete(name)
         @monitor_files[name] = modified_at(name)
-        log("New classes in #{name}: #{entry[:constants].to_a.join(' ')}") unless entry[:constants].empty?
+
+        unless constants_defined
+          log("New classes in #{name}: #{entry[:constants].to_a.join(' ')}") unless entry[:constants].empty?
+        end
         log("New features in #{name}: #{entry[:features].to_a.join(' ')}") unless entry[:features].empty?
       end
 
       # Rollback the changes made by requiring the file, restoring the previous state.
       def rollback(name)
-        new_classes(@old_entries[name][:constants]).each{|klass| remove_constant(klass)}
+        remove_constants(name){new_classes(@old_entries[name][:constants])}
         @old_entries.delete(name)
       end
 
@@ -263,8 +291,8 @@ module Rack
     end
 
     # Add a file glob or array of file globs to monitor for changes.
-    def require(depends)
-      @reloader.require_dependencies(depends)
+    def require(depends, &block)
+      @reloader.require_dependencies(depends, &block)
     end
   end
 end

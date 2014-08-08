@@ -35,14 +35,17 @@ describe Rack::Unreloader do
     @logger
   end
 
-  def ru(opts={})
-    return @ru if @ru
+  def base_ru(opts={})
     block = opts[:block] || proc{App}
     @ru = Rack::Unreloader.new({:logger=>logger, :cooldown=>0}.merge(opts), &block)
     @ru.reloader.extend ModifiedAt
     Object.const_set(:RU, @ru)
+  end
+
+  def ru(opts={})
+    return @ru if @ru
+    base_ru(opts)
     update_app(opts[:code]||code(1))
-    yield if block_given?
     @ru.require 'spec/app.rb'
     @ru
   end
@@ -192,9 +195,7 @@ describe Rack::Unreloader do
   end
 
   it "it should not unload class defined in dependency if already defined in parent" do
-    @ru = Rack::Unreloader.new({:logger=>logger, :cooldown=>0}){App}
-    @ru.reloader.extend ModifiedAt
-    Object.const_set(:RU, @ru)
+    base_ru
     update_app("class App; def self.call(env) @a end; @a ||= []; @a << 2; RU.require 'spec/app2.rb'; end")
     update_app("class App; @a << 3 end", 'spec/app2.rb')
     @ru.require 'spec/app.rb'
@@ -218,4 +219,16 @@ describe Rack::Unreloader do
               %r{\ANew features in .*spec/app\.rb: .*spec/app2\.rb\z}
   end
 
+  it "it allow specifying proc for which constants get removed" do
+    base_ru
+    update_app("class App; def self.call(env) [@a, App2.a] end; @a ||= []; @a << 1; end; class App2; def self.a; @a end; @a ||= []; @a << 2; end")
+    @ru.require('spec/app.rb'){|f| File.basename(f).sub(/\.rb/, '').capitalize}
+    ru.call({}).should == [[1], [2]]
+    update_app("class App; def self.call(env) [@a, App2.a] end; @a ||= []; @a << 3; end; class App2; def self.a; @a end; @a ||= []; @a << 4; end")
+    ru.call({}).should == [[3], [2, 4]]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app.rb\z}
+  end
 end

@@ -146,11 +146,29 @@ You can use the usual file globbing:
 
   Unreloader.require 'models/*.rb'
 
+== Speeding Things Up
+
+By default, <tt>Rack::Unreloader</tt> uses +ObjectSpace+ before and after requiring each
+file that it monitors, to see which classes and modules were defined by the
+require.  This is slow for large numbers of files.  In general use it isn't an
+issue as general only a single file will be changed at a time, but it can
+significantly slow down startup when all files are being loaded at the same
+time.
+
+If you want to speed things up, you can provide a block to Rack::Unreloader#require,
+which will take the file name, and should return the name of the constants or array
+of constants to load.  If you do this, <tt>Rack::Unreloader</tt> will no longer need
+to use +ObjectSpace+, which substantially speeds up startup.  For example, if all of
+your models just use a capitalized version of the filename:
+
+  Unreloader.require('models/*.rb'){|f| File.basename(f).sub(/\.rb\z/, '').capitalize}
+
 == History
 
 Rack::Unreloader was derived from Padrino's reloader.  It is significantly smaller
 as it cuts out a lot of Padrino-specific code, and it forces the user to manually
-specify what files to monitor.
+specify what files to monitor.  It has additional features, improvements, and bug
+fixes.
 
 == Caveats
 
