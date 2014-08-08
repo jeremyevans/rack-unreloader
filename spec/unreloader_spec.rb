@@ -231,4 +231,17 @@ describe Rack::Unreloader do
               "Removed constant App",
               %r{\ARemoved feature .*/spec/app.rb\z}
   end
+
+  it "should log when attempting to remove a class that doesn't exist" do
+    base_ru
+    update_app(code(1))
+    @ru.require('spec/app.rb'){|f| 'Foo'}
+    ru.call({}).should == [1]
+    update_app(code(2))
+    ru.call({}).should == [1, 2]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Error removing constant: Foo",
+              %r{\ARemoved feature .*/spec/app.rb\z}
+  end
 end

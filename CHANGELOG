@@ -1,5 +1,7 @@
 = HEAD
 
+* Log when attempting to remove a constant that doesn't exist (jeremyevans)
+
 * Allow specifying constants to remove via a block to require, instead of using ObjectSpace (jeremyevans)
 
 * Don't unload constants defined in parents when loading dependencies (jeremyevans)

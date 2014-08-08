@@ -121,6 +121,7 @@ module Rack
         base.send :remove_const, object
         log "Removed constant #{const}"
       rescue NameError
+        log "Error removing constant: #{const}"
       end
 
       # Remove a feature if it is being monitored for reloading, so it
