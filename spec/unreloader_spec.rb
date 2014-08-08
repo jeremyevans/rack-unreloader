@@ -232,6 +232,18 @@ describe Rack::Unreloader do
               %r{\ARemoved feature .*/spec/app.rb\z}
   end
 
+  it "should handle anonymous classes" do
+    base_ru(:block=>proc{$app})
+    update_app("$app = Class.new do def self.call(env) @a end; @a ||= []; @a << 1; end")
+    @ru.require('spec/app.rb')
+    ru.call({}).should == [1]
+    update_app("$app = Class.new do def self.call(env) @a end; @a ||= []; @a << 2; end")
+    ru.call({}).should == [2]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              %r{\ARemoved feature .*/spec/app.rb\z}
+  end
+
   it "should log when attempting to remove a class that doesn't exist" do
     base_ru
     update_app(code(1))

@@ -213,9 +213,9 @@ module Rack
       def all_classes
         rs = Set.new
 
-        ObjectSpace.each_object(Module).each do |klass|
-          if monitored_class?(klass)
-            rs << klass
+        ObjectSpace.each_object(Module).each do |mod|
+          if !mod.name.to_s.empty? && monitored_module?(mod)
+            rs << mod
           end
         end
 
@@ -224,20 +224,20 @@ module Rack
 
       # Return whether the given klass is a monitored class that could
       # be unloaded.
-      def monitored_class?(klass)
+      def monitored_module?(mod)
         @classes.any? do |c|
           c = constantize(c) rescue false
 
-          if klass.is_a?(Class)
+          if mod.is_a?(Class)
             # Reload the class if it is a subclass if the current class
-            (klass < c) rescue false
+            (mod < c) rescue false
           elsif c == Object
             # If reloading for all classes, reload for all modules as well
             true
           else
             # Otherwise, reload only if the module matches exactly, since
             # modules don't have superclasses.
-            klass == c
+            mod == c
           end
         end
       end
