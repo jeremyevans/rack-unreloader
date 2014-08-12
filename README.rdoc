@@ -128,6 +128,10 @@ need to specify the module name if you want to reload it:
 
   Unreloader = Rack::Unreloader.new(:subclasses=>%w'MyModule'){App}
 
+Note that if the modules defined are included in any classes, this doesn't
+uninclude them (ruby doesn't support that), so there won't be a change to
+that class until that class is reloaded as well.
+
 == Requiring
 
 Rack::Unreloader#require is a little different than require in that it takes
@@ -157,7 +161,7 @@ time.
 
 If you want to speed things up, you can provide a block to Rack::Unreloader#require,
 which will take the file name, and should return the name of the constants or array
-of constants to load.  If you do this, <tt>Rack::Unreloader</tt> will no longer need
+of constants to unload.  If you do this, <tt>Rack::Unreloader</tt> will no longer need
 to use +ObjectSpace+, which substantially speeds up startup.  For example, if all of
 your models just use a capitalized version of the filename:
 
