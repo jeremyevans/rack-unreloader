@@ -190,6 +190,11 @@ environment anytime there are any changes) are going to be more robust than
 this approach, but probably slower.  Be aware that you are trading robustness
 for speed when using this library.
 
+== Implementation Support
+
+Rack::Unreloader works correctly on Ruby 1.8.7+ and Rubinius.  It only works on
+JRuby if you use a proc to specify the constants to unload.
+
 == License
 
 MIT
