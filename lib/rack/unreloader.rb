@@ -285,7 +285,7 @@ module Rack
     # Call the app with the environment.
     def call(env)
       if @cooldown && Time.now > @last + @cooldown
-        Thread.exclusive{@reloader.reload!}
+        Thread.respond_to?(:exclusive) ? Thread.exclusive{@reloader.reload!} : @reloader.reload!
         @last = Time.now
       end
       @app_block.call.call(env)
