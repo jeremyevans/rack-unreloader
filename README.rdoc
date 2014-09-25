@@ -146,9 +146,18 @@ full path:
 
   Unreloader.require '/path/to/app.rb'
 
-You can use the usual file globbing:
+You can use the usual file globbing to load multiple files:
 
   Unreloader.require 'models/*.rb'
+
+If you want to load all files in a given directory you should just give
+the directory path:
+
+  Unreloader.require 'models'
+
+The advantage for doing this is that new files added to the directory will be
+picked up automatically, and files deleted from the directory will be removed
+automatically.
 
 == Speeding Things Up
 
@@ -165,7 +174,7 @@ of constants to unload.  If you do this, <tt>Rack::Unreloader</tt> will no longe
 to use +ObjectSpace+, which substantially speeds up startup.  For example, if all of
 your models just use a capitalized version of the filename:
 
-  Unreloader.require('models/*.rb'){|f| File.basename(f).sub(/\.rb\z/, '').capitalize}
+  Unreloader.require('models'){|f| File.basename(f).sub(/\.rb\z/, '').capitalize}
 
 == History
 

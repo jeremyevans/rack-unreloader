@@ -1,3 +1,9 @@
+= 1.1.0 (2014-09-25)
+
+* Allow monitoring of directories, so that new files can be picked up, and deleted files removed (jeremyevans)
+
+* Support ruby 1.8.7 (jeremyevans)
+
 = 1.0.0 (2014-08-12)
 
 * Ignore anonymous classes/modules (jeremyevans)

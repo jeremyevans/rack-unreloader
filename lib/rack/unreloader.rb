@@ -21,6 +21,12 @@ module Rack
         # with values being the last modified time (or nil if the file has not yet been loaded).
         @monitor_files = {}
 
+        # Hash of directories being monitored for changes, keyed by absolute path of directory name,
+        # with values being the an array with the last modified time (or nil if the directory has not
+        # yet been loaded), an array of files in the directory, and a block to pass to
+        # require_dependency for new files.
+        @monitor_dirs = {}
+
         # Hash of procs returning constants defined in files, keyed by absolute path
         # of file name.  If there is no proc, must call ObjectSpace before and after
         # loading files to detect changes, which is slower.
@@ -55,10 +61,33 @@ module Rack
       # If there are any changed files, reload them.  If there are no changed
       # files, do nothing.
       def reload!
+        @monitor_dirs.keys.each do |dir|
+          check_monitor_dir(dir)
+        end
+
         @monitor_files.to_a.each do |file, time|
           if file_changed?(file, time)
             safe_load(file)
           end
+        end
+      end
+
+      # Check a monitored directory for changes, adding new files and removing
+      # deleted files.
+      def check_monitor_dir(dir)
+        time, files, block = @monitor_dirs[dir]
+
+        if file_changed?(dir, time)
+          cur_files = Dir.new(dir).grep(/\.rb\z/).map{|f| F.join(dir, f)}
+
+          (files - cur_files).each do |f|
+            remove(f)
+            @monitor_files.delete(f)
+          end
+
+          require_dependencies(cur_files - files, &block)
+
+          files.replace(cur_files)
         end
       end
 
@@ -76,8 +105,15 @@ module Rack
           uniq.
           each do |file|
 
-          @constants_defined[file] = block
-          @monitor_files[file] = nil
+          if F.directory?(file)
+            @monitor_dirs[file] = [nil, [], block]
+            check_monitor_dir(file)
+            next
+          else
+            @constants_defined[file] = block
+            @monitor_files[file] = nil
+          end
+
           begin
             safe_load(file, options)
           rescue NameError, LoadError => error
