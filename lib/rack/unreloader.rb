@@ -1,3 +1,4 @@
+require 'find'
 require 'set'
 
 module Rack
@@ -78,7 +79,7 @@ module Rack
         time, files, block = @monitor_dirs[dir]
 
         if file_changed?(dir, time)
-          cur_files = Dir.new(dir).grep(/\.rb\z/).map{|f| F.join(dir, f)}
+          cur_files = Find.find(dir).grep(/\.rb\z/)
 
           (files - cur_files).each do |f|
             remove(f)

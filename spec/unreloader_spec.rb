@@ -271,10 +271,13 @@ describe Rack::Unreloader do
   describe "with a directory" do
     before do
       Dir.mkdir('spec/dir')
+      Dir.mkdir('spec/dir/subdir')
     end
 
     after do
+      Dir['spec/dir/subdir/*.rb'].each{|f| File.delete(f)}
       Dir['spec/dir/*.rb'].each{|f| File.delete(f)}
+      Dir.rmdir('spec/dir/subdir')
       Dir.rmdir('spec/dir')
     end
 
@@ -294,6 +297,22 @@ describe Rack::Unreloader do
                 %r{\ARemoved feature .*/spec/dir/a.rb\z}
     end
 
+    it "should pick up changes to files in subdirectories" do
+      base_ru
+      update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
+      update_app("App.call[:foo] = 1", 'spec/dir/subdir/a.rb')
+      @ru.require('spec/app.rb')
+      ru.call({}).should == {:foo=>1}
+      update_app("App.call[:foo] = 2", 'spec/dir/subdir/a.rb')
+      ru.call({}).should == {:foo=>2}
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ALoading.*spec/dir/subdir/a\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z},
+                %r{\ANew features in .*spec/app\.rb: .*spec/dir/subdir/a\.rb\z},
+                %r{\AReloading .*/spec/dir/subdir/a.rb\z},
+                %r{\ARemoved feature .*/spec/dir/subdir/a.rb\z}
+    end
+
     it "should pick up new files added to the directory" do
       base_ru
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
@@ -304,6 +323,18 @@ describe Rack::Unreloader do
       log_match %r{\ALoading.*spec/app\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z},
                 %r{\ALoading.*spec/dir/a\.rb\z}
+    end
+
+    it "should pick up new files added to subdirectories" do
+      base_ru
+      update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
+      @ru.require('spec/app.rb')
+      ru.call({}).should == {}
+      update_app("App.call[:foo] = 2", 'spec/dir/subdir/a.rb')
+      ru.call({}).should == {:foo=>2}
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z},
+                %r{\ALoading.*spec/dir/subdir/a\.rb\z}
     end
 
     it "should drop files deleted from the directory" do
@@ -321,6 +352,23 @@ describe Rack::Unreloader do
                 %r{\ANew features in .*spec/app\.rb: .*spec/dir/a\.rb\z},
                 %r{\ARemoved feature .*/spec/dir/a.rb\z},
                 %r{\ALoading.*spec/dir/b\.rb\z}
+    end
+
+    it "should drop files deleted from subdirectories" do
+      base_ru
+      update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
+      update_app("App.call[:foo] = 1", 'spec/dir/subdir/a.rb')
+      @ru.require('spec/app.rb')
+      ru.call({}).should == {:foo=>1}
+      File.delete('spec/dir/subdir/a.rb')
+      update_app("App.call[:foo] = 2", 'spec/dir/subdir/b.rb')
+      ru.call({}).should == {:foo=>2}
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ALoading.*spec/dir/subdir/a\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z},
+                %r{\ANew features in .*spec/app\.rb: .*spec/dir/subdir/a\.rb\z},
+                %r{\ARemoved feature .*/spec/dir/subdir/a.rb\z},
+                %r{\ALoading.*spec/dir/subdir/b\.rb\z}
     end
   end
 end
