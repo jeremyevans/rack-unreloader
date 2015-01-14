@@ -57,7 +57,7 @@ describe Rack::Unreloader do
     return @ru if @ru
     base_ru(opts)
     update_app(opts[:code]||code(1))
-    @ru.require 'spec/app.rb'
+    @ru.require @filename
     @ru
   end
 
@@ -72,19 +72,28 @@ describe Rack::Unreloader do
   end
 
   after do
-    ru.reloader.clear!
+    ru.reloader.clear! if ru.reloader
     Object.send(:remove_const, :RU)
     Object.send(:remove_const, :App) if defined?(::App)
     Object.send(:remove_const, :App2) if defined?(::App2)
     Dir['spec/app*.rb'].each{|f| File.delete(f)}
   end
 
-  it "should not reload files if cooldown option is nil" do
+  it "should not reload files automatically if cooldown option is nil" do
     ru(:cooldown => nil).call({}).should == [1]
     update_app(code(2))
     ru.call({}).should == [1]
     @ru.reloader.reload!
     ru.call({}).should == [2]
+  end
+
+  it "should not setup a reloader if reload option is false" do
+    @filename = 'spec/app_no_reload.rb'
+    ru(:reload => false).call({}).should == [1]
+    file = 'spec/app_no_reload2.rb'
+    File.open(file, 'wb'){|f| f.write('ANR2 = 2')}
+    ru.require 'spec/app_no_*2.rb'
+    ANR2.should == 2
   end
 
   it "should unload constants contained in file and reload file if file changes" do

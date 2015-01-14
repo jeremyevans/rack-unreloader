@@ -101,18 +101,20 @@ This way, changing your +app.rb+ file will not reload your +models.rb+ file.
 
 In general, you are only going to want to reload code in development mode.
 To simplify things, you can use rack-unreloader both in development and
-production, and just not have it reload in production by setting +:cooldown+
-to nil if not in development:
+production, and just not have it reload in production by setting +:reload+
+to false if not in development:
 
   dev = ENV['RACK_ENV'] == 'development'
   require 'rack/unreloader'
-  Unreloader = Rack::Unreloader.new(:cooldown=>(1 if dev)){App}
+  Unreloader = Rack::Unreloader.new(:reload=>dev){App}
   Unreloader.require './models.rb'
   Unreloader.require './app.rb'
   run(dev ? Unreloader : App)
 
 By running the App instead of Unreloader in production mode, there is no
-speed hit.
+performance penalty.  The advantage of this approach is you can use
+Unreloader.require to require files regardless of whether you are using
+development or production mode.
 
 == Modules
 

@@ -5,10 +5,21 @@ module Rack
   # Reloading application that unloads constants before reloading the relevant
   # files, calling the new rack app if it gets reloaded.
   class Unreloader
-    class Reloader
-      # Reference to ::File as File would return Rack::File by default.
-      F = ::File
+    # Reference to ::File as File would return Rack::File by default.
+    F = ::File
 
+    # Given the path glob or array of path globs, find all matching files
+    # or directories, and return an array of expanded paths.
+    def self.expand_paths(paths)
+      Array(paths).
+        flatten.
+        map{|path| Dir.glob(path).sort_by{|filename| filename.count('/')}}.
+        flatten.
+        map{|path| F.expand_path(path)}.
+        uniq
+    end
+
+    class Reloader
       # Regexp for valid constant names, to prevent code execution.
       VALID_CONSTANT_NAME_REGEXP = /\A(?:::)?([A-Z]\w*(?:::[A-Z]\w*)*)\z/.freeze
 
@@ -101,14 +112,7 @@ module Rack
         options = {:cyclic => true}
         error = nil 
 
-        Array(paths).
-          flatten.
-          map{|path| Dir.glob(path).sort_by{|filename| filename.count('/')}}.
-          flatten.
-          map{|path| F.expand_path(path)}.
-          uniq.
-          each do |file|
-
+        Unreloader.expand_paths(paths).each do |file|
           if F.directory?(file)
             @monitor_dirs[file] = [nil, [], block]
             check_monitor_dir(file)
@@ -301,13 +305,15 @@ module Rack
       end
     end
 
-    # The Rack::Unreloader::Reloader instead related to this instance.
+    # The Rack::Unreloader::Reloader instead related to this instance, if one.
     attr_reader :reloader
 
     # Setup the reloader. Options:
     # 
     # :cooldown :: The number of seconds to wait between checks for changed files.
     #              Defaults to 1.  Set to nil/false to not check for changed files.
+    # :reload :: Set to false to not setup a reloader, and just have require work
+    #            directly.  Should be set to false in production mode.
     # :logger :: A Logger instance which will log information related to reloading.
     # :subclasses :: A string or array of strings of class names that should be unloaded.
     #                Any classes that are not subclasses of these classes will not be
@@ -315,10 +321,14 @@ module Rack
     #                match exactly, since modules don't have superclasses.
     def initialize(opts={}, &block)
       @app_block = block
-      @cooldown = opts.fetch(:cooldown, 1)
-      @last = Time.at(0)
-      @reloader = Reloader.new(opts)
-      @reloader.reload!
+      if @reload = opts.fetch(:reload, true)
+        @cooldown = opts.fetch(:cooldown, 1)
+        @last = Time.at(0)
+        @reloader = Reloader.new(opts)
+        @reloader.reload!
+      else
+        @cooldown = false
+      end
     end
 
     # If the cooldown time has been passed, reload any application files that have changed.
@@ -332,8 +342,12 @@ module Rack
     end
 
     # Add a file glob or array of file globs to monitor for changes.
-    def require(depends, &block)
-      @reloader.require_dependencies(depends, &block)
+    def require(paths, &block)
+      if @reload
+        @reloader.require_dependencies(paths, &block)
+      else
+        Unreloader.expand_paths(paths).each{|f| super(f)}
+      end
     end
   end
 end
