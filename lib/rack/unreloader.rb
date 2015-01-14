@@ -77,10 +77,15 @@ module Rack
           check_monitor_dir(dir)
         end
 
-        @monitor_files.to_a.each do |file, time|
+        changed_files = []
+        @monitor_files.each do |file, time|
           if file_changed?(file, time)
-            safe_load(file)
+            changed_files << file
           end
+        end
+
+        changed_files.each do |file|
+          safe_load(file)
         end
       end
 
