@@ -312,7 +312,7 @@ module Rack
     #                match exactly, since modules don't have superclasses.
     def initialize(opts={}, &block)
       @app_block = block
-      @cooldown = opts[:cooldown] || 1
+      @cooldown = opts.fetch(:cooldown, 1)
       @last = Time.at(0)
       @reloader = Reloader.new(opts)
       @reloader.reload!
