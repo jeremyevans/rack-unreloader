@@ -80,7 +80,7 @@ describe Rack::Unreloader do
   end
 
   it "should not reload files if cooldown option is nil" do
-    ru(cooldown: nil).call({}).should == [1]
+    ru(:cooldown => nil).call({}).should == [1]
     update_app(code(2))
     ru.call({}).should == [1]
     @ru.reloader.reload!
