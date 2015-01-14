@@ -33,7 +33,7 @@ describe Rack::Unreloader do
   end
 
   def update_app(code, file=@filename)
-    ru.reloader.set_modified_time(file, @i += 1)
+    ru.reloader.set_modified_time(file, @i += 1) if ru.reloader
     File.open(file, 'wb'){|f| f.write(code)}
   end
 
@@ -49,7 +49,7 @@ describe Rack::Unreloader do
   def base_ru(opts={})
     block = opts[:block] || proc{App}
     @ru = Rack::Unreloader.new({:logger=>logger, :cooldown=>0}.merge(opts), &block)
-    @ru.reloader.extend ModifiedAt
+    @ru.reloader.extend ModifiedAt if @ru.reloader
     Object.const_set(:RU, @ru)
   end
 
