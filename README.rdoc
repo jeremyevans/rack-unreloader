@@ -97,44 +97,22 @@ before requiring +app.rb+:
 
 This way, changing your +app.rb+ file will not reload your +models.rb+ file.
 
-== Only in Development Mode
+== Only Reload in Development Mode
 
-In general, you are only going to want to run this in development mode.
-Assuming you use +RACK_ENV+ to determine development mode, you can change
-+config.ru+ to:
+In general, you are only going to want to reload code in development mode.
+To simplify things, you can use rack-unreloader both in development and
+production, and just not have it reload in production by setting +:cooldown+
+to nil if not in development:
 
-  if ENV['RACK_ENV'] == 'development'
-    require 'rack/unreloader'
-    Unreloader = Rack::Unreloader.new{App}
-    Unreloader.require './models.rb'
-    Unreloader.require './app.rb'
-    run Unreloader
-  else
-    require './app.rb'
-    run App
-  end
+  dev = ENV['RACK_ENV'] == 'development'
+  require 'rack/unreloader'
+  Unreloader = Rack::Unreloader.new(:cooldown=>(1 if dev)){App}
+  Unreloader.require './models.rb'
+  Unreloader.require './app.rb'
+  run(dev ? Unreloader : App)
 
-If there are dependencies that you don't want to require directly in your
-+config.ru+, but you do want to use <tt>Rack::Unreloader</tt> for them in
-development, you can do:
-
-  (defined?(Unreloader) ? Unreloader : Kernel).require './models.rb'
-
-Note that if you don't mind a very small speed hit in production, you can
-set the :cooldown option to nil when instantiating the Unreloader, which
-will cause it not to reload files automatically.  This allows you to
-remove conditionals from your code:
-
-    dev = ENV['RACK_ENV'] == 'development'
-    require 'rack/unreloader'
-    Unreloader = Rack::Unreloader.new(:cooldown=>(1 if dev)){App}
-    Unreloader.require './models.rb'
-    Unreloader.require './app.rb'
-    run Unreloader
-
-And to load dependencies outside of your +config.ru+:
-
-    Unreloader.require './models.rb'
+By running the App instead of Unreloader in production mode, there is no
+speed hit.
 
 == Modules
 
