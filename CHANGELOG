@@ -1,3 +1,9 @@
+= HEAD
+
+* Document that setting the :cooldown option to nil makes the Unreloader not reload (celsworth, jeremyevans) (#3)
+
+* Handle files in subdirectories when monitoring directories (celsworth) (#2)
+
 = 1.1.0 (2014-09-25)
 
 * Allow monitoring of directories, so that new files can be picked up, and deleted files removed (jeremyevans)

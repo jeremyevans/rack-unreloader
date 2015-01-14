@@ -304,7 +304,7 @@ module Rack
     # Setup the reloader. Options:
     # 
     # :cooldown :: The number of seconds to wait between checks for changed files.
-    #              Defaults to 1.
+    #              Defaults to 1.  Set to nil/false to not check for changed files.
     # :logger :: A Logger instance which will log information related to reloading.
     # :subclasses :: A string or array of strings of class names that should be unloaded.
     #                Any classes that are not subclasses of these classes will not be

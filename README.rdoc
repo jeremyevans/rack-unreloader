@@ -120,6 +120,22 @@ development, you can do:
 
   (defined?(Unreloader) ? Unreloader : Kernel).require './models.rb'
 
+Note that if you don't mind a very small speed hit in production, you can
+set the :cooldown option to nil when instantiating the Unreloader, which
+will cause it not to reload files automatically.  This allows you to
+remove conditionals from your code:
+
+    dev = ENV['RACK_ENV'] == 'development'
+    require 'rack/unreloader'
+    Unreloader = Rack::Unreloader.new(:cooldown=>(1 if dev)){App}
+    Unreloader.require './models.rb'
+    Unreloader.require './app.rb'
+    run Unreloader
+
+And to load dependencies outside of your +config.ru+:
+
+    Unreloader.require './models.rb'
+
 == Modules
 
 This reloader also handles modules.  Since modules do not have superclasses,
@@ -157,14 +173,14 @@ the directory path:
 
 The advantage for doing this is that new files added to the directory will be
 picked up automatically, and files deleted from the directory will be removed
-automatically.
+automatically. This applies to files in subdirectories of that directory as well.
 
 == Speeding Things Up
 
 By default, <tt>Rack::Unreloader</tt> uses +ObjectSpace+ before and after requiring each
 file that it monitors, to see which classes and modules were defined by the
 require.  This is slow for large numbers of files.  In general use it isn't an
-issue as general only a single file will be changed at a time, but it can
+issue as generally only a single file will be changed at a time, but it can
 significantly slow down startup when all files are being loaded at the same
 time.
 
