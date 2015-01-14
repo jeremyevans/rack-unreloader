@@ -124,9 +124,19 @@ need to specify the module name if you want to reload it:
 
   Unreloader = Rack::Unreloader.new(:subclasses=>%w'MyModule'){App}
 
-Note that if the modules defined are included in any classes, this doesn't
-uninclude them (ruby doesn't support that), so there won't be a change to
-that class until that class is reloaded as well.
+== Dependencies
+
+To correctly handle modules and superclasses, if a change is made to a module
+or superclass, you generally want to reload all classes that include the
+module or subclass the superclass, so they they pick up the change to the
+module or superclass.
+
+You can specify the file dependencies when using rack-unreloader:
+
+  Unreload.record_dependency('lib/module_file.rb', %w'models/mod1.rb models/mod2.rb')
+
+If lib/module_file.rb is changed, rack-unreloader will reload models/mod1.rb
+and models/mod2.rb after reloading lib/module_file.rb.
 
 == Requiring
 

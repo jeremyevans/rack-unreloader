@@ -1,5 +1,9 @@
 = HEAD
 
+* Add the ability to record dependencies, making it possible to correctly support modules and superclasses (jeremyevans)
+
+* Add :reload option, set to false to not support reloading, useful in production mode (jeremyevans)
+
 * Document that setting the :cooldown option to nil makes the Unreloader not reload (celsworth, jeremyevans) (#3)
 
 * Handle files in subdirectories when monitoring directories (celsworth) (#2)

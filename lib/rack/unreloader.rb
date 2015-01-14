@@ -23,6 +23,9 @@ module Rack
       # Regexp for valid constant names, to prevent code execution.
       VALID_CONSTANT_NAME_REGEXP = /\A(?:::)?([A-Z]\w*(?:::[A-Z]\w*)*)\z/.freeze
 
+      # Options hash to force loading of files even if they haven't changed.
+      FORCE = {:force=>true}.freeze
+
       # Setup the reloader.  Supports :logger and :subclasses options, see
       # Rack::Unloader.new for details.
       def initialize(opts={})
@@ -51,8 +54,31 @@ module Rack
 
         # Similar to @files, but stores previous entries, used when rolling back.
         @old_entries = {}
+
+        # Records dependencies on files.  Keys are absolute paths, values are arrays of absolute paths,
+        # where each entry depends on the key, so that if the key path is modified, all values are
+        # reloaded.
+        @dependencies = {}
+
+        # Array of the order in which to load dependencies
+        @dependency_order = []
       end
 
+      # Record a dependency the given files, such that each file in +files+
+      # depends on +path+.  If +path+ changes, each file in +files+ should
+      # be reloaded as well.
+      def record_dependency(path, files)
+        files = (@dependencies[path] ||= []).concat(files)
+        files.uniq!
+
+        order = @dependency_order
+        i = order.find_index{|v| files.include?(v)} || -1
+        order.insert(i, path)
+        order.concat(files)
+        order.uniq!
+        nil
+      end
+  
       # Tries to find a declared constant with the name specified
       # in the string. It raises a NameError when the name is not in CamelCase
       # or is not initialized.
@@ -69,7 +95,7 @@ module Rack
       def log(s)
         @logger.info(s) if @logger
       end
-  
+
       # If there are any changed files, reload them.  If there are no changed
       # files, do nothing.
       def reload!
@@ -84,8 +110,20 @@ module Rack
           end
         end
 
+        return if changed_files.empty?
+
+        unless @dependencies.empty?
+          changed_files = reload_files(changed_files)
+          changed_files.flatten!
+          changed_files.uniq!
+          
+          order = @dependency_order
+          order &= changed_files
+          changed_files = (order & changed_files) + (changed_files - order)
+        end
+
         changed_files.each do |file|
-          safe_load(file)
+          safe_load(file, FORCE)
         end
       end
 
@@ -291,6 +329,17 @@ module Rack
         end
       end
 
+      # Recursively reload dependencies for the changed files.
+      def reload_files(changed_files)
+        changed_files.map do |file|
+          if deps = @dependencies[file]
+            [file] + reload_files(deps)
+          else
+            file
+          end
+        end
+      end
+
       # Return a set of all classes in the ObjectSpace that are not in the
       # given set of classes.
       def new_classes(snapshot)
@@ -352,6 +401,19 @@ module Rack
         @reloader.require_dependencies(paths, &block)
       else
         Unreloader.expand_paths(paths).each{|f| super(f)}
+      end
+    end
+
+    # Records that each path in +files+ depends on +dependency+.  If there
+    # is a modification to +dependency+, all related files will be reloaded
+    # after +dependency+ is reloaded.  Both +dependency+ and each entry in +files+
+    # can be an array of path globs.
+    def record_dependency(dependency, *files)
+      if @reload
+        files = Unreloader.expand_paths(files)
+        Unreloader.expand_paths(dependency).each do |path|
+          @reloader.record_dependency(path, files)
+        end
       end
     end
   end

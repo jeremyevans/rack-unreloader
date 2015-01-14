@@ -285,6 +285,25 @@ describe Rack::Unreloader do
               %r{\ARemoved feature .*/spec/app.rb\z}
   end
 
+  it "should handle recorded dependencies" do
+    base_ru
+    update_app("module A; B = 1; end", 'spec/app_mod.rb')
+    update_app("class App; A = ::A; def self.call(env) A::B end; end")
+    ru.require 'spec/app_mod.rb'
+    ru.require 'spec/app.rb'
+    ru.record_dependency 'spec/app_mod.rb', 'spec/app.rb'
+    ru.call({}).should == 1
+    update_app("module A; B = 2; end", 'spec/app_mod.rb')
+    ru.call({}).should == 2
+    update_app("module A; include C; end", 'spec/app_mod.rb')
+    update_app("module C; B = 3; end", 'spec/app_mod2.rb')
+    ru.record_dependency 'spec/app_mod2.rb', 'spec/app_mod.rb'
+    ru.require 'spec/app_mod2.rb'
+    ru.call({}).should == 3
+    update_app("module C; B = 4; end", 'spec/app_mod2.rb')
+    ru.call({}).should == 4
+  end
+
   describe "with a directory" do
     before do
       Dir.mkdir('spec/dir')
