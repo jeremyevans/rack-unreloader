@@ -1,5 +1,7 @@
 = HEAD
 
+* Make most methods in the Reloader private (jeremyevans)
+
 * Separate reloading logic into separate file, so using unreloader in production takes less memory (jeremyevans)
 
 * Add the ability to record dependencies, making it possible to correctly support modules and superclasses (jeremyevans)

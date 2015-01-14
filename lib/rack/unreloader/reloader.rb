@@ -50,6 +50,16 @@ module Rack
         @dependency_order = []
       end
 
+      # Unload all reloadable constants and features, and clear the list
+      # of files to monitor.
+      def clear!
+        @files.keys.each do |file|
+          remove(file)
+        end
+        @monitor_files = {}
+        @old_entries = {}
+      end
+
       # Record a dependency the given files, such that each file in +files+
       # depends on +path+.  If +path+ changes, each file in +files+ should
       # be reloaded as well.
@@ -65,23 +75,6 @@ module Rack
         nil
       end
   
-      # Tries to find a declared constant with the name specified
-      # in the string. It raises a NameError when the name is not in CamelCase
-      # or is not initialized.
-      def constantize(s)
-        s = s.to_s
-        if m = VALID_CONSTANT_NAME_REGEXP.match(s)
-          Object.module_eval("::#{m[1]}", __FILE__, __LINE__)
-        else
-          log("#{s.inspect} is not a valid constant name!")
-        end
-      end
-
-      # Log the given string at info level if there is a logger.
-      def log(s)
-        @logger.info(s) if @logger
-      end
-
       # If there are any changed files, reload them.  If there are no changed
       # files, do nothing.
       def reload!
@@ -113,28 +106,6 @@ module Rack
         end
       end
 
-      # Check a monitored directory for changes, adding new files and removing
-      # deleted files.
-      def check_monitor_dir(dir)
-        time, files, block = @monitor_dirs[dir]
-
-        if file_changed?(dir, time)
-          cur_files = []
-          Find.find(dir) do |f|
-            cur_files << f if f =~ /\.rb\z/
-          end
-
-          (files - cur_files).each do |f|
-            remove(f)
-            @monitor_files.delete(f)
-          end
-
-          require_dependencies(cur_files - files, &block)
-
-          files.replace(cur_files)
-        end
-      end
-
       # Require the given dependencies, monitoring them for changes.
       # Paths should be a file glob or an array of file globs.
       def require_dependencies(paths, &block)
@@ -163,6 +134,47 @@ module Rack
         if error
           log error
           raise error
+        end
+      end
+
+      private
+
+      # Tries to find a declared constant with the name specified
+      # in the string. It raises a NameError when the name is not in CamelCase
+      # or is not initialized.
+      def constantize(s)
+        s = s.to_s
+        if m = VALID_CONSTANT_NAME_REGEXP.match(s)
+          Object.module_eval("::#{m[1]}", __FILE__, __LINE__)
+        else
+          log("#{s.inspect} is not a valid constant name!")
+        end
+      end
+
+      # Log the given string at info level if there is a logger.
+      def log(s)
+        @logger.info(s) if @logger
+      end
+
+      # Check a monitored directory for changes, adding new files and removing
+      # deleted files.
+      def check_monitor_dir(dir)
+        time, files, block = @monitor_dirs[dir]
+
+        if file_changed?(dir, time)
+          cur_files = []
+          Find.find(dir) do |f|
+            cur_files << f if f =~ /\.rb\z/
+          end
+
+          (files - cur_files).each do |f|
+            remove(f)
+            @monitor_files.delete(f)
+          end
+
+          require_dependencies(cur_files - files, &block)
+
+          files.replace(cur_files)
         end
       end
 
@@ -204,16 +216,6 @@ module Rack
           $LOADED_FEATURES.delete(file)
           log "Removed feature #{file}"
         end
-      end
-
-      # Unload all reloadable constants and features, and clear the list
-      # of files to monitor.
-      def clear!
-        @files.keys.each do |file|
-          remove(file)
-        end
-        @monitor_files = {}
-        @old_entries = {}
       end
 
       # Remove the given file, removing any constants and other files loaded
@@ -274,8 +276,6 @@ module Rack
         remove_constants(name){new_classes(@old_entries[name][:constants])}
         @old_entries.delete(name)
       end
-
-      private
 
       # The current loaded features that are being monitored
       def monitored_features
