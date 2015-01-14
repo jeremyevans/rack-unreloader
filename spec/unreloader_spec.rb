@@ -83,6 +83,8 @@ describe Rack::Unreloader do
     ru(cooldown: nil).call({}).should == [1]
     update_app(code(2))
     ru.call({}).should == [1]
+    @ru.reloader.reload!
+    ru.call({}).should == [2]
   end
 
   it "should unload constants contained in file and reload file if file changes" do
