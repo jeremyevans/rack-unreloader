@@ -1,5 +1,7 @@
 = HEAD
 
+* Separate reloading logic into separate file, so using unreloader in production takes less memory (jeremyevans)
+
 * Add the ability to record dependencies, making it possible to correctly support modules and superclasses (jeremyevans)
 
 * Add :reload option, set to false to not support reloading, useful in production mode (jeremyevans)
