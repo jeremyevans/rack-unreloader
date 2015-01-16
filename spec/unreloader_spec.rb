@@ -101,7 +101,7 @@ describe Rack::Unreloader do
     file = 'spec/dir/app_no_reload3.rb'
     begin
       File.open(file, 'wb'){|f| f.write('ANR3 = 3')}
-      ru(:reload => false)
+      base_ru(:reload => false)
       ru.require 'spec/dir'
       ANR3.should == 3
     ensure
