@@ -1,3 +1,5 @@
+require 'find'
+
 module Rack
   # Reloading application that unloads constants before reloading the relevant
   # files, calling the new rack app if it gets reloaded.
@@ -14,6 +16,15 @@ module Rack
         flatten.
         map{|path| F.expand_path(path)}.
         uniq
+    end
+
+    # The .rb files in the given directory or any subdirectory.
+    def self.ruby_files(dir)
+      files = []
+      Find.find(dir) do |f|
+        files << f if f =~ /\.rb\z/
+      end
+      files
     end
 
     # The Rack::Unreloader::Reloader instead related to this instance, if one.
@@ -58,7 +69,10 @@ module Rack
       if @reload
         @reloader.require_dependencies(paths, &block)
       else
-        Unreloader.expand_paths(paths).each{|f| super(f)}
+        Unreloader.expand_paths(paths).
+          map{|f| F.directory?(f) ? Unreloader.ruby_files(f) : f}.
+          flatten.
+          each{|f| super(f)}
       end
     end
 

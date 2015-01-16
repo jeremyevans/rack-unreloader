@@ -1,4 +1,3 @@
-require 'find'
 require 'set'
 
 module Rack
@@ -162,10 +161,7 @@ module Rack
         time, files, block = @monitor_dirs[dir]
 
         if file_changed?(dir, time)
-          cur_files = []
-          Find.find(dir) do |f|
-            cur_files << f if f =~ /\.rb\z/
-          end
+          cur_files = Unreloader.ruby_files(dir)
 
           (files - cur_files).each do |f|
             remove(f)
