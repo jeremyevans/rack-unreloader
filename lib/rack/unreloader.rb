@@ -7,6 +7,15 @@ module Rack
     # Reference to ::File as File would return Rack::File by default.
     F = ::File
 
+    # Given the list of paths, find all matching files, or matching ruby files
+    # in subdirecories if given a directory, and return an array of expanded
+    # paths.
+    def self.expand_directory_paths(paths)
+      expand_paths(paths).
+        map{|f| F.directory?(f) ? ruby_files(f) : f}.
+        flatten
+    end
+
     # Given the path glob or array of path globs, find all matching files
     # or directories, and return an array of expanded paths.
     def self.expand_paths(paths)
@@ -69,10 +78,7 @@ module Rack
       if @reload
         @reloader.require_dependencies(paths, &block)
       else
-        Unreloader.expand_paths(paths).
-          map{|f| F.directory?(f) ? Unreloader.ruby_files(f) : f}.
-          flatten.
-          each{|f| super(f)}
+        Unreloader.expand_directory_paths(paths).each{|f| super(f)}
       end
     end
 
