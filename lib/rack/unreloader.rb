@@ -33,7 +33,7 @@ module Rack
       Find.find(dir) do |f|
         files << f if f =~ /\.rb\z/
       end
-      files
+      files.sort
     end
 
     # The Rack::Unreloader::Reloader instead related to this instance, if one.

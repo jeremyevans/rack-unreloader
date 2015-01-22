@@ -160,18 +160,17 @@ module Rack
       def check_monitor_dir(dir)
         time, files, block = @monitor_dirs[dir]
 
-        if file_changed?(dir, time)
-          cur_files = Unreloader.ruby_files(dir)
+        cur_files = Unreloader.ruby_files(dir)
+        return if files == cur_files
 
-          (files - cur_files).each do |f|
-            remove(f)
-            @monitor_files.delete(f)
-          end
-
-          require_dependencies(cur_files - files, &block)
-
-          files.replace(cur_files)
+        (files - cur_files).each do |f|
+          remove(f)
+          @monitor_files.delete(f)
         end
+
+        require_dependencies(cur_files - files, &block)
+
+        files.replace(cur_files)
       end
 
       # Requires the given file, logging which constants or features are added
