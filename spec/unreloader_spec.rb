@@ -96,20 +96,6 @@ describe Rack::Unreloader do
     ANR2.should == 2
   end
 
-  it "should have unreloader require with directories if reload option is false" do
-    Dir.mkdir('spec/dir') unless File.directory?('spec/dir')
-    file = 'spec/dir/app_no_reload3.rb'
-    begin
-      File.open(file, 'wb'){|f| f.write('ANR3 = 3')}
-      base_ru(:reload => false)
-      ru.require 'spec/dir'
-      ANR3.should == 3
-    ensure
-      File.delete(file)
-      Dir.rmdir('spec/dir')
-    end
-  end
-
   it "should unload constants contained in file and reload file if file changes" do
     ru.call({}).should == [1]
     update_app(code(2))
@@ -329,6 +315,14 @@ describe Rack::Unreloader do
       Dir['spec/dir/*.rb'].each{|f| File.delete(f)}
       Dir.rmdir('spec/dir/subdir')
       Dir.rmdir('spec/dir')
+    end
+
+    it "should have unreloader require with directories if reload option is false" do
+      file = 'spec/dir/app_no_reload3.rb'
+      File.open(file, 'wb'){|f| f.write('ANR3 = 3')}
+      base_ru(:reload => false)
+      ru.require 'spec/dir'
+      ANR3.should == 3
     end
 
     it "should pick up changes to files in that directory" do
