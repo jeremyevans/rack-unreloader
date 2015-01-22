@@ -71,17 +71,25 @@ module Rack
         order.insert(i, path)
         order.concat(files)
         order.uniq!
+
+        if F.directory?(path)
+          (@monitor_files.keys & Unreloader.ruby_files(path)).each do |file|
+            record_dependency(file, files)
+          end
+        end
+
         nil
       end
   
       # If there are any changed files, reload them.  If there are no changed
       # files, do nothing.
       def reload!
+        changed_files = []
+
         @monitor_dirs.keys.each do |dir|
-          check_monitor_dir(dir)
+          check_monitor_dir(dir, changed_files)
         end
 
-        changed_files = []
         @monitor_files.each do |file, time|
           if file_changed?(file, time)
             changed_files << file
@@ -92,6 +100,8 @@ module Rack
 
         unless @dependencies.empty?
           changed_files = reload_files(changed_files)
+          changed_files.flatten!
+          changed_files.map!{|f| F.directory?(f) ? Unreloader.ruby_files(f) : f}
           changed_files.flatten!
           changed_files.uniq!
           
@@ -157,18 +167,37 @@ module Rack
 
       # Check a monitored directory for changes, adding new files and removing
       # deleted files.
-      def check_monitor_dir(dir)
+      def check_monitor_dir(dir, changed_files=nil)
         time, files, block = @monitor_dirs[dir]
 
         cur_files = Unreloader.ruby_files(dir)
         return if files == cur_files
 
-        (files - cur_files).each do |f|
-          remove(f)
-          @monitor_files.delete(f)
+        removed_files = files - cur_files
+        new_files = cur_files - files
+
+        if changed_files
+          changed_files.concat(dependency_files(removed_files))
         end
 
-        require_dependencies(cur_files - files, &block)
+        removed_files.each do |f|
+          remove(f)
+          @monitor_files.delete(f)
+          @dependencies.delete(f)
+          @dependency_order.delete(f)
+        end
+
+        require_dependencies(new_files, &block)
+
+        new_files.each do |file|
+          if deps = @dependencies[dir]
+            record_dependency(file, deps)
+          end
+        end
+
+        if changed_files
+          changed_files.concat(dependency_files(new_files))
+        end
 
         files.replace(cur_files)
       end
@@ -319,6 +348,13 @@ module Rack
             file
           end
         end
+      end
+
+      # The dependencies for the changed files, excluding the files themselves.
+      def dependency_files(changed_files)
+        files = reload_files(changed_files)
+        files.flatten!
+        files - changed_files
       end
 
       # Return a set of all classes in the ObjectSpace that are not in the

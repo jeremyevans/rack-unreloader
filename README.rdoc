@@ -138,6 +138,26 @@ You can specify the file dependencies when using rack-unreloader:
 If lib/module_file.rb is changed, rack-unreloader will reload models/mod1.rb
 and models/mod2.rb after reloading lib/module_file.rb.
 
+You can provide directories when requiring dependencies.  For example:
+
+  Unreload.record_dependency('helpers', %w'app.rb')
+
+will make it so the addition of any ruby files to the helpers directory
+will trigger a reload of +app.rb+, and future changes to any of those files
+will also trigger of reload of +app.rb+.  Additionally, deleting any ruby files
+in the helpers directory will also trigger a reload of +app.rb+.
+
+You can also use a directory as the second argument:
+
+  Unreload.record_dependency('mod.rb', 'models')
+
+With this, any change to +mod.rb+ will trigger a reload of all ruby files in
+the models directory, even if such files are added later.
+
+When using +record_dependencies+ with a directory, you should also call
++require+ with that directory, as opposed to specifically requiring
+individual files inside the directory.
+
 == Requiring
 
 Rack::Unreloader#require is a little different than require in that it takes

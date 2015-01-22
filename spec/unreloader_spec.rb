@@ -305,15 +305,19 @@ describe Rack::Unreloader do
   end
 
   describe "with a directory" do
-    before do
+    before(:all) do
       Dir.mkdir('spec/dir')
       Dir.mkdir('spec/dir/subdir')
+      Dir.mkdir('spec/dir/subdir2')
     end
 
     after do
-      Dir['spec/dir/subdir/*.rb'].each{|f| File.delete(f)}
-      Dir['spec/dir/*.rb'].each{|f| File.delete(f)}
+      Dir['spec/dir/**/*.rb'].each{|f| File.delete(f)}
+    end
+
+    after(:all) do
       Dir.rmdir('spec/dir/subdir')
+      Dir.rmdir('spec/dir/subdir2')
       Dir.rmdir('spec/dir')
     end
 
@@ -323,6 +327,48 @@ describe Rack::Unreloader do
       base_ru(:reload => false)
       ru.require 'spec/dir'
       ANR3.should == 3
+    end
+
+    it "should handle recorded dependencies in directories" do
+      base_ru
+      update_app("module A; B = 1; end", 'spec/dir/subdir/app_mod.rb')
+      update_app("class App; A = ::A; def self.call(env) A::B end; end")
+      ru.require 'spec/dir/subdir'
+      ru.require 'spec/app.rb'
+      ru.record_dependency 'spec/dir/subdir', 'spec/app.rb'
+      ru.call({}).should == 1
+      update_app("module A; B = 2; end", 'spec/dir/subdir/app_mod.rb')
+      ru.call({}).should == 2
+      update_app("module A; include C; end", 'spec/dir/subdir/app_mod.rb')
+      update_app("module C; B = 3; end", 'spec/dir/subdir2/app_mod2.rb')
+      ru.require 'spec/dir/subdir2/app_mod2.rb'
+      ru.record_dependency 'spec/dir/subdir2/app_mod2.rb', 'spec/dir/subdir'
+      ru.call({}).should == 3
+      update_app("module C; B = 4; end", 'spec/dir/subdir2/app_mod2.rb')
+      ru.call({}).should == 4
+    end
+
+    it "should handle recorded dependencies in directories when files are added or removed later" do
+      base_ru
+      update_app("class App; A = defined?(::A) ? ::A : Module.new{self::B = 0}; def self.call(env) A::B end; end")
+      ru.record_dependency 'spec/dir/subdir', 'spec/app.rb'
+      ru.record_dependency 'spec/dir/subdir2', 'spec/dir/subdir'
+      ru.require 'spec/app.rb'
+      ru.require 'spec/dir/subdir'
+      ru.require 'spec/dir/subdir2'
+      ru.call({}).should == 0
+      update_app("module A; B = 1; end", 'spec/dir/subdir/app_mod.rb')
+      ru.call({}).should == 1
+      update_app("module A; B = 2; end", 'spec/dir/subdir/app_mod.rb')
+      ru.call({}).should == 2
+      update_app("module C; B = 3; end", 'spec/dir/subdir2/app_mod2.rb')
+      ru.call({}).should == 2
+      update_app("module A; include C; end", 'spec/dir/subdir/app_mod.rb')
+      ru.call({}).should == 3
+      update_app("module C; B = 4; end", 'spec/dir/subdir2/app_mod2.rb')
+      ru.call({}).should == 4
+      File.delete 'spec/dir/subdir/app_mod.rb'
+      ru.call({}).should == 0
     end
 
     it "should pick up changes to files in that directory" do
