@@ -202,6 +202,14 @@ your models just use a capitalized version of the filename:
 
   Unreloader.require('models'){|f| File.basename(f).sub(/\.rb\z/, '').capitalize}
 
+== Usage Outside Rack
+
+While <tt>Rack::Unreloader</tt> is usually in the development of rack applications,
+it doesn't depend on rack.  You can just instantiate an instance of Unreloader and
+use it to handle reloading in any ruby application, just by using the +require+ and
++record_dependency+ to set up the metadata, and calling +reload!+ manually to
+reload the application.
+
 == History
 
 Rack::Unreloader was derived from Padrino's reloader.  It is significantly smaller

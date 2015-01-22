@@ -57,7 +57,7 @@ module Rack
         @last = Time.at(0)
         Kernel.require 'rack/unreloader/reloader'
         @reloader = Reloader.new(opts)
-        @reloader.reload!
+        reload!
       else
         @cooldown = false
       end
@@ -67,7 +67,7 @@ module Rack
     # Call the app with the environment.
     def call(env)
       if @cooldown && Time.now > @last + @cooldown
-        Thread.respond_to?(:exclusive) ? Thread.exclusive{@reloader.reload!} : @reloader.reload!
+        Thread.respond_to?(:exclusive) ? Thread.exclusive{reload!} : reload!
         @last = Time.now
       end
       @app_block.call.call(env)
@@ -93,6 +93,11 @@ module Rack
           @reloader.record_dependency(path, files)
         end
       end
+    end
+
+    # Reload the application, checking for changed files and reloading them.
+    def reload!
+      @reloader.reload! if @reloader
     end
   end
 end

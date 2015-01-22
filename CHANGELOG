@@ -1,5 +1,7 @@
 = HEAD
 
+* Add Unreloader#reload!, for manually checking for changed files, useful for non-rack applications (jeremyevans)
+
 * Make most methods in the Reloader private (jeremyevans)
 
 * Separate reloading logic into separate file, so using unreloader in production takes less memory (jeremyevans)
