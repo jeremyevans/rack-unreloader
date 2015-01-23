@@ -1,5 +1,7 @@
 = HEAD
 
+* Add Unreloader#record_split_class, for handling classes split into multiple files (jeremyevans)
+
 * Add Unreloader#reload!, for manually checking for changed files, useful for non-rack applications (jeremyevans)
 
 * Make most methods in the Reloader private (jeremyevans)

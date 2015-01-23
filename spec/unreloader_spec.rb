@@ -371,6 +371,27 @@ describe Rack::Unreloader do
       ru.call({}).should == 0
     end
 
+    it "should handle classes split into multiple files" do
+      base_ru
+      update_app("class App; RU.require('spec/dir'); def self.call(env) \"\#{a if respond_to?(:a)}\#{b if respond_to?(:b)}1\".to_i end; end")
+      ru.require 'spec/app.rb'
+      ru.record_split_class 'spec/app.rb', 'spec/dir'
+      ru.call({}).should == 1
+      update_app("class App; def self.a; 2 end end", 'spec/dir/appa.rb')
+      ru.call({}).should == 21
+      update_app("class App; def self.a; 3 end end", 'spec/dir/appa.rb')
+      ru.call({}).should == 31
+      update_app("class App; def self.b; 4 end end", 'spec/dir/appb.rb')
+      ru.call({}).should == 341
+      update_app("class App; def self.a; 5 end end", 'spec/dir/appa.rb')
+      update_app("class App; def self.b; 6 end end", 'spec/dir/appb.rb')
+      ru.call({}).should == 561
+      update_app("class App; end", 'spec/dir/appa.rb')
+      ru.call({}).should == 61
+      File.delete 'spec/dir/appb.rb'
+      ru.call({}).should == 1
+    end
+
     it "should pick up changes to files in that directory" do
       base_ru
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")

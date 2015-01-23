@@ -47,6 +47,10 @@ module Rack
 
         # Array of the order in which to load dependencies
         @dependency_order = []
+
+        # Array of absolute paths which should be unloaded, but not reloaded on changes,
+        # because files that depend on them will load them automatically.
+        @skip_reload = []
       end
 
       # Unload all reloadable constants and features, and clear the list
@@ -107,7 +111,14 @@ module Rack
           
           order = @dependency_order
           order &= changed_files
-          changed_files = (order & changed_files) + (changed_files - order)
+          changed_files = order + (changed_files - order)
+        end
+
+        unless @skip_reload.empty?
+          skip_reload = @skip_reload.map{|f| F.directory?(f) ? Unreloader.ruby_files(f) : f}
+          skip_reload.flatten!
+          skip_reload.uniq!
+          changed_files -= skip_reload
         end
 
         changed_files.each do |file|
@@ -144,6 +155,15 @@ module Rack
           log error
           raise error
         end
+      end
+
+      # Skip reloading the given files.  Should only be used if other files
+      # depend on these files and the other files require these files when
+      # loaded.
+      def skip_reload(files)
+        @skip_reload.concat(files)
+        @skip_reload.uniq!
+        nil
       end
 
       private

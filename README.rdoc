@@ -158,6 +158,28 @@ When using +record_dependencies+ with a directory, you should also call
 +require+ with that directory, as opposed to specifically requiring
 individual files inside the directory.
 
+== Classes Split Into Multiple Files
+
+Rack::Unreloader handles classes split into multiple files, where there is
+a main file for the class that requires the other files that define the
+class.  Assuming the main class file is +app.rb+, and other files that
+make up the class are in +helpers+:
+
+  # inside config.ru
+  Unreloader.require 'app.rb'
+
+  # inside app.rb
+  Unreloader.require 'helpers'
+  Unreloader.record_split_class(__FILE__, 'helpers')
+
+If +app.rb+ is changed or any of the ruby files in +helpers+ is changed,
+it will reload +app.rb+ and all of the files in +helpers+.  This makes
+it so if you remove a method from one of the files in +helpers+, it will
+reload the entire class so that the method is no longer defined.  Likewise,
+if you delete one of the files in helpers, it will reload the class so that
+the methods that were defined in that file will no longer be defined on the
+class.
+
 == Requiring
 
 Rack::Unreloader#require is a little different than require in that it takes

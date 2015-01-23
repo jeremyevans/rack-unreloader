@@ -52,14 +52,14 @@ module Rack
     #                match exactly, since modules don't have superclasses.
     def initialize(opts={}, &block)
       @app_block = block
-      if @reload = opts.fetch(:reload, true)
+      if opts.fetch(:reload, true)
         @cooldown = opts.fetch(:cooldown, 1)
         @last = Time.at(0)
         Kernel.require 'rack/unreloader/reloader'
         @reloader = Reloader.new(opts)
         reload!
       else
-        @cooldown = false
+        @reloader = @cooldown = false
       end
     end
 
@@ -75,7 +75,7 @@ module Rack
 
     # Add a file glob or array of file globs to monitor for changes.
     def require(paths, &block)
-      if @reload
+      if @reloader
         @reloader.require_dependencies(paths, &block)
       else
         Unreloader.expand_directory_paths(paths).each{|f| super(f)}
@@ -87,11 +87,24 @@ module Rack
     # after +dependency+ is reloaded.  Both +dependency+ and each entry in +files+
     # can be an array of path globs.
     def record_dependency(dependency, *files)
-      if @reload
+      if @reloader
         files = Unreloader.expand_paths(files)
         Unreloader.expand_paths(dependency).each do |path|
           @reloader.record_dependency(path, files)
         end
+      end
+    end
+
+    # Record that a class is split into multiple files. +main_file+ should be
+    # the main file for the class, which should require all of the other
+    # files.  +files+ should be a list of all other files that make up the class.
+    def record_split_class(main_file, *files)
+      if @reloader
+        files = Unreloader.expand_paths(files)
+        files.each do |file|
+          record_dependency(file, main_file)
+        end
+        @reloader.skip_reload(files)
       end
     end
 
