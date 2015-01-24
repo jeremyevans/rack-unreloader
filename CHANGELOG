@@ -1,4 +1,4 @@
-= HEAD
+= 1.2.0 (2015-01-24)
 
 * Add Unreloader#record_split_class, for handling classes split into multiple files (jeremyevans)
 
