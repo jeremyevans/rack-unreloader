@@ -1,3 +1,7 @@
+= 1.2.1 (2015-01-27)
+
+* Fix homepage in gemspec (jeremyevans)
+
 = 1.2.0 (2015-01-24)
 
 * Add Unreloader#record_split_class, for handling classes split into multiple files (jeremyevans)
