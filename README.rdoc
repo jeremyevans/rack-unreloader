@@ -239,10 +239,9 @@ reload the application.
 
 == History
 
-Rack::Unreloader was derived from Padrino's reloader.  It is significantly smaller
-as it cuts out a lot of Padrino-specific code, and it forces the user to manually
-specify what files to monitor.  It has additional features, improvements, and bug
-fixes.
+Rack::Unreloader was derived from Padrino's reloader.  The Padrino-specific parts
+were removed, and it now requires the user manually specify which files to monitor.
+It has additional features, improvements, and bug fixes.
 
 == Caveats
 
@@ -253,7 +252,8 @@ will not handle correctly.  If it isn't doing what you expect, add a logger:
 
 Unloading constants causes issues whenever references to the constant are
 cached anywhere instead of looking up the constant by name.  This is fairly
-common, and using this library can cause a memory leak in such a case.
+common, and using this library can cause a memory leak or unexpected
+behavior in such a case.
 
 Approaches that load a fresh environment for every request (or a fresh
 environment anytime there are any changes) are going to be more robust than
