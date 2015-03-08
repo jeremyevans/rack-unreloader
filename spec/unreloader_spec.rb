@@ -108,6 +108,21 @@ describe Rack::Unreloader do
               %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
+  it "should check constants using ObjectSpace if require proc returns :ObjectSpace" do
+    base_ru
+    update_app(code(1))
+    @ru.require(@filename){|f| :ObjectSpace}
+    ru.call({}).should == [1]
+    update_app(code(2))
+    ru.call({}).should == [2]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AReloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
+  end
+
   it "should pickup files added as dependencies" do
     ru.call({}).should == [1]
     update_app("RU.require 'spec/app2.rb'; class App; def self.call(env) [@a, App2.call(env)] end; @a ||= []; @a << 2; end")
@@ -255,9 +270,11 @@ describe Rack::Unreloader do
     update_app("class App; def self.call(env) [@a, App2.a] end; @a ||= []; @a << 3; end; class App2; def self.a; @a end; @a ||= []; @a << 4; end")
     ru.call({}).should == [[3], [2, 4]]
     log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AReloading.*spec/app\.rb\z},
               "Removed constant App",
-              %r{\ARemoved feature .*/spec/app.rb\z}
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
   it "should handle anonymous classes" do
@@ -280,9 +297,11 @@ describe Rack::Unreloader do
     update_app(code(2))
     ru.call({}).should == [1, 2]
     log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: Foo\z},
               %r{\AReloading.*spec/app\.rb\z},
               "Error removing constant: Foo",
-              %r{\ARemoved feature .*/spec/app.rb\z}
+              %r{\ARemoved feature .*/spec/app.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: Foo\z}
   end
 
   it "should handle recorded dependencies" do

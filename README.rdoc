@@ -224,6 +224,11 @@ your models just use a capitalized version of the filename:
 
   Unreloader.require('models'){|f| File.basename(f).sub(/\.rb\z/, '').capitalize}
 
+In some cases, you may want to pass a block to require, but inside the block
+decide that instead of specifying the constants, ObjectSpace should be used to
+automatically determine the constants loaded. You can specify this by having the
+block return the :ObjectSpace symbol.
+
 == Usage Outside Rack
 
 While <tt>Rack::Unreloader</tt> is usually in the development of rack applications,

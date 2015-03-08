@@ -275,15 +275,7 @@ module Rack
       # Remove constants defined in file.  Uses the stored block if there is
       # one for the file name, or the given block.
       def remove_constants(name)
-        constants = if pr = @constants_defined[name] 
-          Array(pr.call(name))
-        else
-          yield
-        end
-
-        if constants
-          constants.each{|constant| remove_constant(constant)}
-        end
+        yield.each{|constant| remove_constant(constant)}
       end
 
       # Store the currently loaded classes and features, so in case of an error
@@ -291,33 +283,46 @@ module Rack
       def prepare(name)
         file = remove(name)
         @old_entries[name] = {:features => monitored_features}
+        unless @old_entries[name][:constants] = constants_for(name)
+          @old_entries[name][:all_classes] = all_classes
+        end
+      end
 
-        unless @constants_defined[name]
-          @old_entries[name][:constants] = all_classes
+      # Returns nil if ObjectSpace should be used to load the constants.  Returns an array of
+      # constant name symbols loaded by the file if they have been manually specified.
+      def constants_for(name)
+        if (pr = @constants_defined[name]) && (constants = pr.call(name)) != :ObjectSpace
+          Array(constants)
+        end
+      end
+
+      # The constants that were loaded by the given file.  If ObjectSpace was used to check
+      # all classes loaded previously, then check for new classes loaded since.  If the constants 
+      # were explicitly specified, then use them directly
+      def constants_loaded_by(name)
+        if @old_entries[name][:all_classes]
+          new_classes(@old_entries[name][:all_classes])
+        else
+          @old_entries[name][:constants]
         end
       end
 
       # Commit the changed state after requiring the the file, recording the new
       # classes and features added by the file.
       def commit(name)
-        entry = {:features  => monitored_features - @old_entries[name][:features] - [name]}
-        unless constants_defined = @constants_defined[name]
-          entry[:constants] = new_classes(@old_entries[name][:constants])
-        end
+        entry = {:features => monitored_features - @old_entries[name][:features] - [name], :constants=>constants_loaded_by(name)}
 
         @files[name] = entry
         @old_entries.delete(name)
         @monitor_files[name] = modified_at(name)
 
-        unless constants_defined
-          log("New classes in #{name}: #{entry[:constants].to_a.join(' ')}") unless entry[:constants].empty?
-        end
+        log("New classes in #{name}: #{entry[:constants].to_a.join(' ')}") unless entry[:constants].empty?
         log("New features in #{name}: #{entry[:features].to_a.join(' ')}") unless entry[:features].empty?
       end
 
       # Rollback the changes made by requiring the file, restoring the previous state.
       def rollback(name)
-        remove_constants(name){new_classes(@old_entries[name][:constants])}
+        remove_constants(name){constants_loaded_by(name)}
         @old_entries.delete(name)
       end
 
@@ -330,7 +335,7 @@ module Rack
       def all_classes
         rs = Set.new
 
-        ObjectSpace.each_object(Module).each do |mod|
+        ::ObjectSpace.each_object(Module).each do |mod|
           if !mod.name.to_s.empty? && monitored_module?(mod)
             rs << mod
           end

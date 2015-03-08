@@ -1,3 +1,7 @@
+= HEAD
+
+* Allow returning :ObjectSpace for require block to signal that ObjectSpace should be used to determine constants (jeremyevans)
+
 = 1.2.1 (2015-01-27)
 
 * Fix homepage in gemspec (jeremyevans)
