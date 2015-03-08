@@ -1,5 +1,7 @@
 = HEAD
 
+* Log when specified constant exists before loading file or does not exist after loading (jeremyevans)
+
 * Improve logging, making it explicit when files are unloaded and reloaded (jeremyevans)
 
 * Allow returning :ObjectSpace for require block to signal that ObjectSpace should be used to determine constants (jeremyevans)

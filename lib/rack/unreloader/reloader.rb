@@ -278,12 +278,26 @@ module Rack
         yield.each{|constant| remove_constant(constant)}
       end
 
+      # True if the constant is already defined, false if not
+      def constant_defined?(const)
+        constantize(const)
+        true
+      rescue
+        false
+      end
+
       # Store the currently loaded classes and features, so in case of an error
       # this state can be rolled back to.
       def prepare(name)
         file = remove(name)
         @old_entries[name] = {:features => monitored_features}
-        unless @old_entries[name][:constants] = constants_for(name)
+        if constants = constants_for(name)
+          defs = constants.select{|c| constant_defined?(c)}
+          unless defs.empty?
+            log "Constants already defined before loading #{name}: #{defs.join(" ")}"
+          end
+          @old_entries[name][:constants] = constants
+        else
           @old_entries[name][:all_classes] = all_classes
         end
       end
@@ -316,8 +330,16 @@ module Rack
         @old_entries.delete(name)
         @monitor_files[name] = modified_at(name)
 
-        log("New classes in #{name}: #{entry[:constants].to_a.join(' ')}") unless entry[:constants].empty?
-        log("New features in #{name}: #{entry[:features].to_a.join(' ')}") unless entry[:features].empty?
+        defs, not_defs = entry[:constants].partition{|c| constant_defined?(c)}
+        unless not_defs.empty?
+          log "Constants not defined after loading #{name}: #{not_defs.join(' ')}"
+        end
+        unless defs.empty?
+          log("New classes in #{name}: #{defs.join(' ')}") 
+        end
+        unless entry[:features].empty?
+          log("New features in #{name}: #{entry[:features].to_a.join(' ')}") 
+        end
       end
 
       # Rollback the changes made by requiring the file, restoring the previous state.

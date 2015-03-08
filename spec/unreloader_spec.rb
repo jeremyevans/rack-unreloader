@@ -297,11 +297,22 @@ describe Rack::Unreloader do
     update_app(code(2))
     ru.call({}).should == [1, 2]
     log_match %r{\ALoading.*spec/app\.rb\z},
-              %r{\ANew classes in .*spec/app\.rb: Foo\z},
+              %r{\AConstants not defined after loading .*spec/app\.rb: Foo\z},
               %r{\AUnloading.*spec/app\.rb\z},
               "Error removing constant: Foo",
               %r{\ALoading.*spec/app\.rb\z},
-              %r{\ANew classes in .*spec/app\.rb: Foo\z}
+              %r{\AConstants not defined after loading .*spec/app\.rb: Foo\z}
+  end
+
+  it "should log when specifying a constant that already exists" do
+    base_ru
+    update_app(code(1))
+    ::App2 = 1
+    @ru.require('spec/app.rb'){|f| 'App2'}
+    ru.call({}).should == [1]
+    log_match %r{\AConstants already defined before loading .*spec/app\.rb: App2\z},
+              %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App2\z}
   end
 
   it "should handle recorded dependencies" do
