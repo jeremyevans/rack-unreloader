@@ -1,5 +1,7 @@
 = HEAD
 
+* Improve logging, making it explicit when files are unloaded and reloaded (jeremyevans)
+
 * Allow returning :ObjectSpace for require block to signal that ObjectSpace should be used to determine constants (jeremyevans)
 
 = 1.2.1 (2015-01-27)

@@ -176,7 +176,7 @@ module Rack
         if m = VALID_CONSTANT_NAME_REGEXP.match(s)
           Object.module_eval("::#{m[1]}", __FILE__, __LINE__)
         else
-          log("#{s.inspect} is not a valid constant name!")
+          log("Invalid constant name: #{s}")
         end
       end
 
@@ -229,8 +229,8 @@ module Rack
         return unless @monitor_files.has_key?(file)
         return unless options[:force] || file_changed?(file)
 
-        log "#{@monitor_files[file] ? 'Reloading' : 'Loading'} #{file}"
         prepare(file) # might call #safe_load recursively
+        log "Loading #{file}"
         begin
           require(file)
           commit(file)
@@ -257,8 +257,8 @@ module Rack
       # can be required again.
       def remove_feature(file)
         if @monitor_files.has_key?(file)
+          log "Unloading #{file}"
           $LOADED_FEATURES.delete(file)
-          log "Removed feature #{file}"
         end
       end
 
@@ -266,10 +266,10 @@ module Rack
       # by the file.
       def remove(name)
         file = @files[name] || return
-        remove_constants(name){file[:constants]}
-        file[:features].each{|feature| remove_feature(feature)}
-        @files.delete(name)
         remove_feature(name) if $LOADED_FEATURES.include?(name)
+        file[:features].each{|feature| remove_feature(feature)}
+        remove_constants(name){file[:constants]}
+        @files.delete(name)
       end
 
       # Remove constants defined in file.  Uses the stored block if there is
