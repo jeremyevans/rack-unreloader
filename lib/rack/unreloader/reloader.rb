@@ -15,7 +15,7 @@ module Rack
       # Rack::Unloader.new for details.
       def initialize(opts={})
         @logger = opts[:logger]
-        @classes = opts[:subclasses] ?  Array(opts[:subclasses]).map{|s| s.to_s} : %w'Object'
+        @classes = opts[:subclasses] ?  Array(opts[:subclasses]).map(&:to_s) : %w'Object'
 
         # Hash of files being monitored for changes, keyed by absolute path of file name,
         # with values being the last modified time (or nil if the file has not yet been loaded).
