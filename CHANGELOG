@@ -1,4 +1,4 @@
-= HEAD
+= 1.3.0 (2015-04-06)
 
 * Log when specified constant exists before loading file or does not exist after loading (jeremyevans)
 
