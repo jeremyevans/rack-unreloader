@@ -10,36 +10,12 @@ end
 
 ### Specs
 
-begin
-  begin
-    raise LoadError if ENV['RSPEC1']
-    # RSpec 2
-    require "rspec/core/rake_task"
-    spec_class = RSpec::Core::RakeTask
-    spec_files_meth = :pattern=
-  rescue LoadError
-    # RSpec 1
-    require "spec/rake/spectask"
-    spec_class = Spec::Rake::SpecTask
-    spec_files_meth = :spec_files=
-  end
-
-  spec = lambda do |name, files, d|
-    lib_dir = File.join(File.dirname(File.expand_path(__FILE__)), 'lib')
-    ENV['RUBYLIB'] ? (ENV['RUBYLIB'] += ":#{lib_dir}") : (ENV['RUBYLIB'] = lib_dir)
-    desc d
-    spec_class.new(name) do |t|
-      t.send(spec_files_meth, files)
-    end
-  end
-
-  task :default => [:spec]
-  spec.call("spec", Dir["spec/*_spec.rb"], "Run specs")
-rescue LoadError
-  task :default do
-    puts "Must install rspec to run the default task (which runs specs)"
-  end
+desc "Run Sequel specs"
+task :spec do
+  sh "#{FileUtils::RUBY} -rubygems -I lib spec/unreloader_spec.rb"
 end
+
+task :default => :spec
 
 ### RDoc
 

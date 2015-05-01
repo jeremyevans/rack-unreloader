@@ -1,15 +1,7 @@
 require File.join(File.dirname(File.expand_path(__FILE__)), '../lib/rack/unreloader')
-
-if defined?(RSpec)
-  require 'rspec/version'
-  if RSpec::Version::STRING >= '2.11.0'
-    RSpec.configure do |config|
-      config.expect_with :rspec do |c|
-        c.syntax = :should
-      end
-    end
-  end
-end
+gem 'minitest'
+require 'minitest/autorun'
+require 'minitest/hooks/default'
 
 module ModifiedAt
   def set_modified_time(file, time)
@@ -62,8 +54,8 @@ describe Rack::Unreloader do
   end
 
   def log_match(*logs)
-    @logger.length.should == logs.length
-    logs.zip(@logger).each{|l, log| l.is_a?(String) ? log.should == l : log.should =~ l}
+    @logger.length.must_equal logs.length
+    logs.zip(@logger).each{|l, log| l.is_a?(String) ? log.must_equal(l) : log.must_match(l)}
   end
 
   before do
@@ -80,26 +72,26 @@ describe Rack::Unreloader do
   end
 
   it "should not reload files automatically if cooldown option is nil" do
-    ru(:cooldown => nil).call({}).should == [1]
+    ru(:cooldown => nil).call({}).must_equal [1]
     update_app(code(2))
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     @ru.reload!
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
   end
 
   it "should not setup a reloader if reload option is false" do
     @filename = 'spec/app_no_reload.rb'
-    ru(:reload => false).call({}).should == [1]
+    ru(:reload => false).call({}).must_equal [1]
     file = 'spec/app_no_reload2.rb'
     File.open(file, 'wb'){|f| f.write('ANR2 = 2')}
     ru.require 'spec/app_no_*2.rb'
-    ANR2.should == 2
+    ANR2.must_equal 2
   end
 
   it "should unload constants contained in file and reload file if file changes" do
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     update_app(code(2))
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -112,9 +104,9 @@ describe Rack::Unreloader do
     base_ru
     update_app(code(1))
     @ru.require(@filename){|f| :ObjectSpace}
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     update_app(code(2))
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -124,12 +116,12 @@ describe Rack::Unreloader do
   end
 
   it "should pickup files added as dependencies" do
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     update_app("RU.require 'spec/app2.rb'; class App; def self.call(env) [@a, App2.call(env)] end; @a ||= []; @a << 2; end")
     update_app("class App2; def self.call(env) @a end; @a ||= []; @a << 3; end", 'spec/app2.rb')
-    ru.call({}).should == [[2], [3]]
+    ru.call({}).must_equal [[2], [3]]
     update_app("class App2; def self.call(env) @a end; @a ||= []; @a << 4; end", 'spec/app2.rb')
-    ru.call({}).should == [[2], [4]]
+    ru.call({}).must_equal [[2], [4]]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -146,12 +138,12 @@ describe Rack::Unreloader do
   end
 
   it "should support :subclasses option and only unload subclasses of given class" do
-    ru(:subclasses=>'App').call({}).should == [1]
+    ru(:subclasses=>'App').call({}).must_equal [1]
     update_app("RU.require 'spec/app2.rb'; class App; def self.call(env) [@a, App2.call(env)] end; @a ||= []; @a << 2; end")
     update_app("class App2 < App; def self.call(env) @a end; @a ||= []; @a << 3; end", 'spec/app2.rb')
-    ru.call({}).should == [[1, 2], [3]]
+    ru.call({}).must_equal [[1, 2], [3]]
     update_app("class App2 < App; def self.call(env) @a end; @a ||= []; @a << 4; end", 'spec/app2.rb')
-    ru.call({}).should == [[1, 2], [4]]
+    ru.call({}).must_equal [[1, 2], [4]]
     update_app("RU.require 'spec/app2.rb'; class App; def self.call(env) [@a, App2.call(env)] end; @a ||= []; @a << 2; end")
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -167,7 +159,7 @@ describe Rack::Unreloader do
   end
 
   it "should log invalid constant names in :subclasses options" do
-    ru(:subclasses=>%w'1 Object').call({}).should == [1]
+    ru(:subclasses=>%w'1 Object').call({}).must_equal [1]
     logger.uniq!
     log_match 'Invalid constant name: 1',
               %r{\ALoading.*spec/app\.rb\z},
@@ -175,9 +167,9 @@ describe Rack::Unreloader do
   end
 
   it "should unload modules before reloading similar to classes" do
-    ru(:code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).should == [1]
+    ru(:code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).must_equal [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -187,9 +179,9 @@ describe Rack::Unreloader do
   end
 
   it "should unload specific modules by name via :subclasses option" do
-    ru(:subclasses=>'App', :code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).should == [1]
+    ru(:subclasses=>'App', :code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).must_equal [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -199,21 +191,21 @@ describe Rack::Unreloader do
   end
 
   it "should not unload modules by name if :subclasses option used and module not present" do
-    ru(:subclasses=>'Foo', :code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).should == [1]
+    ru(:subclasses=>'Foo', :code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).must_equal [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
-    ru.call({}).should == [1, 2]
+    ru.call({}).must_equal [1, 2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\AUnloading.*spec/app\.rb\z},
               %r{\ALoading.*spec/app\.rb\z}
   end
 
   it "should unload partially loaded modules if loading fails, and allow future loading" do
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; raise 'foo'; end")
-    proc{ru.call({})}.should raise_error
-    defined?(::App).should == nil
+    proc{ru.call({})}.must_raise RuntimeError
+    defined?(::App).must_equal nil
     update_app(code(2))
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -226,9 +218,9 @@ describe Rack::Unreloader do
   end
 
   it "should unload classes in namespaces" do
-    ru(:code=>"class Array::App; def self.call(env) @a end; @a ||= []; @a << 1; end", :block=>proc{Array::App}).call({}).should == [1]
+    ru(:code=>"class Array::App; def self.call(env) @a end; @a ||= []; @a << 1; end", :block=>proc{Array::App}).call({}).must_equal [1]
     update_app("class Array::App; def self.call(env) @a end; @a ||= []; @a << 2; end")
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: Array::App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -242,11 +234,11 @@ describe Rack::Unreloader do
     update_app("class App; def self.call(env) @a end; @a ||= []; @a << 2; RU.require 'spec/app2.rb'; end")
     update_app("class App; @a << 3 end", 'spec/app2.rb')
     @ru.require 'spec/app.rb'
-    ru.call({}).should == [2, 3]
+    ru.call({}).must_equal [2, 3]
     update_app("class App; @a << 4 end", 'spec/app2.rb')
-    ru.call({}).should == [2, 3, 4]
+    ru.call({}).must_equal [2, 3, 4]
     update_app("class App; def self.call(env) @a end; @a ||= []; @a << 2; RU.require 'spec/app2.rb'; end")
-    ru.call({}).should == [2, 4]
+    ru.call({}).must_equal [2, 4]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ALoading.*spec/app2\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
@@ -266,9 +258,9 @@ describe Rack::Unreloader do
     base_ru
     update_app("class App; def self.call(env) [@a, App2.a] end; @a ||= []; @a << 1; end; class App2; def self.a; @a end; @a ||= []; @a << 2; end")
     @ru.require('spec/app.rb'){|f| File.basename(f).sub(/\.rb/, '').capitalize}
-    ru.call({}).should == [[1], [2]]
+    ru.call({}).must_equal [[1], [2]]
     update_app("class App; def self.call(env) [@a, App2.a] end; @a ||= []; @a << 3; end; class App2; def self.a; @a end; @a ||= []; @a << 4; end")
-    ru.call({}).should == [[3], [2, 4]]
+    ru.call({}).must_equal [[3], [2, 4]]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -281,9 +273,9 @@ describe Rack::Unreloader do
     base_ru(:block=>proc{$app})
     update_app("$app = Class.new do def self.call(env) @a end; @a ||= []; @a << 1; end")
     @ru.require('spec/app.rb')
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     update_app("$app = Class.new do def self.call(env) @a end; @a ||= []; @a << 2; end")
-    ru.call({}).should == [2]
+    ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\AUnloading.*spec/app\.rb\z},
               %r{\ALoading.*spec/app\.rb\z}
@@ -293,9 +285,9 @@ describe Rack::Unreloader do
     base_ru
     update_app(code(1))
     @ru.require('spec/app.rb'){|f| 'Foo'}
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     update_app(code(2))
-    ru.call({}).should == [1, 2]
+    ru.call({}).must_equal [1, 2]
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\AConstants not defined after loading .*spec/app\.rb: Foo\z},
               %r{\AUnloading.*spec/app\.rb\z},
@@ -309,7 +301,7 @@ describe Rack::Unreloader do
     update_app(code(1))
     ::App2 = 1
     @ru.require('spec/app.rb'){|f| 'App2'}
-    ru.call({}).should == [1]
+    ru.call({}).must_equal [1]
     log_match %r{\AConstants already defined before loading .*spec/app\.rb: App2\z},
               %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App2\z}
@@ -322,16 +314,16 @@ describe Rack::Unreloader do
     ru.require 'spec/app_mod.rb'
     ru.require 'spec/app.rb'
     ru.record_dependency 'spec/app_mod.rb', 'spec/app.rb'
-    ru.call({}).should == 1
+    ru.call({}).must_equal 1
     update_app("module A; B = 2; end", 'spec/app_mod.rb')
-    ru.call({}).should == 2
+    ru.call({}).must_equal 2
     update_app("module A; include C; end", 'spec/app_mod.rb')
     update_app("module C; B = 3; end", 'spec/app_mod2.rb')
     ru.record_dependency 'spec/app_mod2.rb', 'spec/app_mod.rb'
     ru.require 'spec/app_mod2.rb'
-    ru.call({}).should == 3
+    ru.call({}).must_equal 3
     update_app("module C; B = 4; end", 'spec/app_mod2.rb')
-    ru.call({}).should == 4
+    ru.call({}).must_equal 4
   end
 
   describe "with a directory" do
@@ -356,7 +348,7 @@ describe Rack::Unreloader do
       File.open(file, 'wb'){|f| f.write('ANR3 = 3')}
       base_ru(:reload => false)
       ru.require 'spec/dir'
-      ANR3.should == 3
+      ANR3.must_equal 3
     end
 
     it "should handle recorded dependencies in directories" do
@@ -366,16 +358,16 @@ describe Rack::Unreloader do
       ru.require 'spec/dir/subdir'
       ru.require 'spec/app.rb'
       ru.record_dependency 'spec/dir/subdir', 'spec/app.rb'
-      ru.call({}).should == 1
+      ru.call({}).must_equal 1
       update_app("module A; B = 2; end", 'spec/dir/subdir/app_mod.rb')
-      ru.call({}).should == 2
+      ru.call({}).must_equal 2
       update_app("module A; include C; end", 'spec/dir/subdir/app_mod.rb')
       update_app("module C; B = 3; end", 'spec/dir/subdir2/app_mod2.rb')
       ru.require 'spec/dir/subdir2/app_mod2.rb'
       ru.record_dependency 'spec/dir/subdir2/app_mod2.rb', 'spec/dir/subdir'
-      ru.call({}).should == 3
+      ru.call({}).must_equal 3
       update_app("module C; B = 4; end", 'spec/dir/subdir2/app_mod2.rb')
-      ru.call({}).should == 4
+      ru.call({}).must_equal 4
     end
 
     it "should handle recorded dependencies in directories when files are added or removed later" do
@@ -386,19 +378,19 @@ describe Rack::Unreloader do
       ru.require 'spec/app.rb'
       ru.require 'spec/dir/subdir'
       ru.require 'spec/dir/subdir2'
-      ru.call({}).should == 0
+      ru.call({}).must_equal 0
       update_app("module A; B = 1; end", 'spec/dir/subdir/app_mod.rb')
-      ru.call({}).should == 1
+      ru.call({}).must_equal 1
       update_app("module A; B = 2; end", 'spec/dir/subdir/app_mod.rb')
-      ru.call({}).should == 2
+      ru.call({}).must_equal 2
       update_app("module C; B = 3; end", 'spec/dir/subdir2/app_mod2.rb')
-      ru.call({}).should == 2
+      ru.call({}).must_equal 2
       update_app("module A; include C; end", 'spec/dir/subdir/app_mod.rb')
-      ru.call({}).should == 3
+      ru.call({}).must_equal 3
       update_app("module C; B = 4; end", 'spec/dir/subdir2/app_mod2.rb')
-      ru.call({}).should == 4
+      ru.call({}).must_equal 4
       File.delete 'spec/dir/subdir/app_mod.rb'
-      ru.call({}).should == 0
+      ru.call({}).must_equal 0
     end
 
     it "should handle classes split into multiple files" do
@@ -406,20 +398,20 @@ describe Rack::Unreloader do
       update_app("class App; RU.require('spec/dir'); def self.call(env) \"\#{a if respond_to?(:a)}\#{b if respond_to?(:b)}1\".to_i end; end")
       ru.require 'spec/app.rb'
       ru.record_split_class 'spec/app.rb', 'spec/dir'
-      ru.call({}).should == 1
+      ru.call({}).must_equal 1
       update_app("class App; def self.a; 2 end end", 'spec/dir/appa.rb')
-      ru.call({}).should == 21
+      ru.call({}).must_equal 21
       update_app("class App; def self.a; 3 end end", 'spec/dir/appa.rb')
-      ru.call({}).should == 31
+      ru.call({}).must_equal 31
       update_app("class App; def self.b; 4 end end", 'spec/dir/appb.rb')
-      ru.call({}).should == 341
+      ru.call({}).must_equal 341
       update_app("class App; def self.a; 5 end end", 'spec/dir/appa.rb')
       update_app("class App; def self.b; 6 end end", 'spec/dir/appb.rb')
-      ru.call({}).should == 561
+      ru.call({}).must_equal 561
       update_app("class App; end", 'spec/dir/appa.rb')
-      ru.call({}).should == 61
+      ru.call({}).must_equal 61
       File.delete 'spec/dir/appb.rb'
-      ru.call({}).should == 1
+      ru.call({}).must_equal 1
     end
 
     it "should pick up changes to files in that directory" do
@@ -427,9 +419,9 @@ describe Rack::Unreloader do
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
       update_app("App.call[:foo] = 1", 'spec/dir/a.rb')
       @ru.require('spec/app.rb')
-      ru.call({}).should == {:foo=>1}
+      ru.call({}).must_equal(:foo=>1)
       update_app("App.call[:foo] = 2", 'spec/dir/a.rb')
-      ru.call({}).should == {:foo=>2}
+      ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
                 %r{\ALoading.*spec/dir/a\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z},
@@ -443,9 +435,9 @@ describe Rack::Unreloader do
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
       update_app("App.call[:foo] = 1", 'spec/dir/subdir/a.rb')
       @ru.require('spec/app.rb')
-      ru.call({}).should == {:foo=>1}
+      ru.call({}).must_equal(:foo=>1)
       update_app("App.call[:foo] = 2", 'spec/dir/subdir/a.rb')
-      ru.call({}).should == {:foo=>2}
+      ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
                 %r{\ALoading.*spec/dir/subdir/a\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z},
@@ -458,9 +450,9 @@ describe Rack::Unreloader do
       base_ru
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
       @ru.require('spec/app.rb')
-      ru.call({}).should == {}
+      ru.call({}).must_equal({})
       update_app("App.call[:foo] = 2", 'spec/dir/a.rb')
-      ru.call({}).should == {:foo=>2}
+      ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z},
                 %r{\ALoading.*spec/dir/a\.rb\z}
@@ -470,9 +462,9 @@ describe Rack::Unreloader do
       base_ru
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
       @ru.require('spec/app.rb')
-      ru.call({}).should == {}
+      ru.call({}).must_equal({})
       update_app("App.call[:foo] = 2", 'spec/dir/subdir/a.rb')
-      ru.call({}).should == {:foo=>2}
+      ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z},
                 %r{\ALoading.*spec/dir/subdir/a\.rb\z}
@@ -483,10 +475,10 @@ describe Rack::Unreloader do
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
       update_app("App.call[:foo] = 1", 'spec/dir/a.rb')
       @ru.require('spec/app.rb')
-      ru.call({}).should == {:foo=>1}
+      ru.call({}).must_equal(:foo=>1)
       File.delete('spec/dir/a.rb')
       update_app("App.call[:foo] = 2", 'spec/dir/b.rb')
-      ru.call({}).should == {:foo=>2}
+      ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
                 %r{\ALoading.*spec/dir/a\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z},
@@ -500,10 +492,10 @@ describe Rack::Unreloader do
       update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require 'spec/dir'")
       update_app("App.call[:foo] = 1", 'spec/dir/subdir/a.rb')
       @ru.require('spec/app.rb')
-      ru.call({}).should == {:foo=>1}
+      ru.call({}).must_equal(:foo=>1)
       File.delete('spec/dir/subdir/a.rb')
       update_app("App.call[:foo] = 2", 'spec/dir/subdir/b.rb')
-      ru.call({}).should == {:foo=>2}
+      ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
                 %r{\ALoading.*spec/dir/subdir/a\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z},
