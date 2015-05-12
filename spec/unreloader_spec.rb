@@ -1,7 +1,7 @@
 require File.join(File.dirname(File.expand_path(__FILE__)), '../lib/rack/unreloader')
 gem 'minitest'
 require 'minitest/autorun'
-require 'minitest/hooks/default'
+require 'minitest/hooks'
 
 module ModifiedAt
   def set_modified_time(file, time)
@@ -327,6 +327,8 @@ describe Rack::Unreloader do
   end
 
   describe "with a directory" do
+    include Minitest::Hooks
+
     before(:all) do
       Dir.mkdir('spec/dir')
       Dir.mkdir('spec/dir/subdir')
