@@ -15,4 +15,6 @@ spec = Gem::Specification.new do |s|
 Rack::Unreloader is a rack middleware that reloads application files when it
 detects changes, unloading constants defined in those files before reloading.
 END
+  s.add_development_dependency "minitest", '>=5.6.1'
+  s.add_development_dependency "minitest-hooks"
 end
