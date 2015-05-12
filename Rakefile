@@ -10,7 +10,7 @@ end
 
 ### Specs
 
-desc "Run Sequel specs"
+desc "Run specs"
 task :spec do
   sh "#{FileUtils::RUBY} -rubygems -I lib spec/unreloader_spec.rb"
 end
