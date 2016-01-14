@@ -52,6 +52,7 @@ module Rack
     #                match exactly, since modules don't have superclasses.
     def initialize(opts={}, &block)
       @app_block = block
+      @mutex = Mutex.new
       if opts.fetch(:reload, true)
         @cooldown = opts.fetch(:cooldown, 1)
         @last = Time.at(0)
@@ -67,7 +68,7 @@ module Rack
     # Call the app with the environment.
     def call(env)
       if @cooldown && Time.now > @last + @cooldown
-        Thread.respond_to?(:exclusive) ? Thread.exclusive{reload!} : reload!
+        @mutex.synchronize{reload!}
         @last = Time.now
       end
       @app_block.call.call(env)
