@@ -1,3 +1,7 @@
+= 1.4.0 (2016-01-15)
+
+* Avoid use of Thread.exclusive, preventing warnings on ruby 2.3 (celsworth, jeremyevans) (#6)
+
 = 1.3.0 (2015-04-06)
 
 * Log when specified constant exists before loading file or does not exist after loading (jeremyevans)
