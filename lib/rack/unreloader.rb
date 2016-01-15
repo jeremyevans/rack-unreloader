@@ -1,9 +1,13 @@
 require 'find'
+require 'monitor'
 
 module Rack
   # Reloading application that unloads constants before reloading the relevant
   # files, calling the new rack app if it gets reloaded.
   class Unreloader
+    # Mutex used to synchronize reloads
+    MUTEX = Monitor.new
+
     # Reference to ::File as File would return Rack::File by default.
     F = ::File
 
@@ -52,7 +56,6 @@ module Rack
     #                match exactly, since modules don't have superclasses.
     def initialize(opts={}, &block)
       @app_block = block
-      @mutex = Mutex.new
       if opts.fetch(:reload, true)
         @cooldown = opts.fetch(:cooldown, 1)
         @last = Time.at(0)
@@ -68,7 +71,7 @@ module Rack
     # Call the app with the environment.
     def call(env)
       if @cooldown && Time.now > @last + @cooldown
-        @mutex.synchronize{reload!}
+        MUTEX.synchronize{reload!}
         @last = Time.now
       end
       @app_block.call.call(env)
