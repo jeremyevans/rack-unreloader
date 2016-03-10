@@ -100,6 +100,16 @@ describe Rack::Unreloader do
               %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
+  it "should stop monitoring file for changes if it is deleted constants contained in file and reload file if file changes" do
+    ru.call({}).must_equal [1]
+    File.delete('spec/app.rb')
+    proc{ru.call({})}.must_raise NameError
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AUnloading.*spec/app\.rb\z},
+              "Removed constant App"
+  end
+
   it "should check constants using ObjectSpace if require proc returns :ObjectSpace" do
     base_ru
     update_app(code(1))

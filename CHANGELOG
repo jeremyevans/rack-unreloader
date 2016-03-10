@@ -1,3 +1,7 @@
+= 1.5.0 (2016-03-10)
+
+* Handle deletions of monitored files (jeremyevans)
+
 = 1.4.0 (2016-01-15)
 
 * Avoid use of Thread.exclusive, preventing warnings on ruby 2.3 (celsworth, jeremyevans) (#6)

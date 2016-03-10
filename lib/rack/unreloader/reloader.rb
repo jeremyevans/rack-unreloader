@@ -94,11 +94,19 @@ module Rack
           check_monitor_dir(dir, changed_files)
         end
 
-        @monitor_files.each do |file, time|
-          if file_changed?(file, time)
-            changed_files << file
+        removed_files = []
+
+        @monitor_files.to_a.each do |file, time|
+          if F.file?(file)
+            if file_changed?(file, time)
+              changed_files << file
+            end
+          else
+            removed_files << file
           end
         end
+
+        remove_files(removed_files)
 
         return if changed_files.empty?
 
@@ -200,12 +208,7 @@ module Rack
           changed_files.concat(dependency_files(removed_files))
         end
 
-        removed_files.each do |f|
-          remove(f)
-          @monitor_files.delete(f)
-          @dependencies.delete(f)
-          @dependency_order.delete(f)
-        end
+        remove_files(removed_files)
 
         require_dependencies(new_files, &block)
 
@@ -220,6 +223,17 @@ module Rack
         end
 
         files.replace(cur_files)
+      end
+
+      # Remove all files in removed_files from the internal data structures,
+      # because the file no longer exists.
+      def remove_files(removed_files)
+        removed_files.each do |f|
+          remove(f)
+          @monitor_files.delete(f)
+          @dependencies.delete(f)
+          @dependency_order.delete(f)
+        end
       end
 
       # Requires the given file, logging which constants or features are added
