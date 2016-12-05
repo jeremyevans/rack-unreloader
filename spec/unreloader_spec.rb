@@ -213,7 +213,7 @@ describe Rack::Unreloader do
     ru.call({}).must_equal [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; raise 'foo'; end")
     proc{ru.call({})}.must_raise RuntimeError
-    defined?(::App).must_equal nil
+    defined?(::App).must_be_nil
     update_app(code(2))
     ru.call({}).must_equal [2]
     log_match %r{\ALoading.*spec/app\.rb\z},
