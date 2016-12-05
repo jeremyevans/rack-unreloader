@@ -106,7 +106,7 @@ to false if not in development:
 
   dev = ENV['RACK_ENV'] == 'development'
   require 'rack/unreloader'
-  Unreloader = Rack::Unreloader.new(:reload=>dev){App}
+  Unreloader = Rack::Unreloader.new(:subclasses=>%w'Roda Sequel::Model', :reload=>dev){App}
   Unreloader.require './models.rb'
   Unreloader.require './app.rb'
   run(dev ? Unreloader : App)
