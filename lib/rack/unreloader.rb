@@ -116,5 +116,17 @@ module Rack
     def reload!
       @reloader.reload! if @reloader
     end
+
+    # Strip the given path prefix from all absolute paths used by the
+    # reloader.  This is designed when chrooting an application.
+    #
+    # Options:
+    # :strip_core :: Also strips the path prefix from $LOADED_FEATURES and
+    #              $LOAD_PATH.
+    def strip_path_prefix(path_prefix, opts={})
+      if @reloader
+        @reloader.strip_path_prefix(path_prefix)
+      end
+    end
   end
 end

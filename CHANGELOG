@@ -1,3 +1,7 @@
+= 1.6.0 (2017-02-24)
+
+* Add Unreloader#strip_path_prefix, designed to support chrooting (jeremyevans)
+
 = 1.5.0 (2016-03-10)
 
 * Handle deletions of monitored files (jeremyevans)

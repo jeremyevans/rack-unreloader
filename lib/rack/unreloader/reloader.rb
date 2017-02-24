@@ -53,6 +53,47 @@ module Rack
         @skip_reload = []
       end
 
+      # Strip the given path prefix from the internal data structures.
+      def strip_path_prefix(path_prefix)
+        empty = ''.freeze
+
+        # Strip the path prefix from $LOADED_FEATURES, otherwise the reloading won't work.
+        # Hopefully a future version of ruby will do this automatically when chrooting.
+        $LOADED_FEATURES.map!{|s| s.sub(path_prefix, empty)}
+
+        fix_path = lambda do |s|
+          s.sub(path_prefix, empty)
+        end
+
+        [@dependency_order, @skip_reload].each do |a|
+          a.map!(&fix_path)
+        end
+
+        [@files, @old_entries].each do |hash|
+          hash.each do |k,h|
+            h[:features].map!(&fix_path)
+          end
+        end
+        
+        @monitor_dirs.each_value do |a|
+          a[1].map!(&fix_path)
+        end
+
+        @dependencies.each_value do |a|
+          a.map!(&fix_path)
+        end
+
+        [@files, @old_entries, @monitor_files, @monitor_dirs, @constants_defined, @dependencies].each do |hash|
+          hash.keys.each do |k|
+            if k.start_with?(path_prefix)
+              hash[fix_path.call(k)] = hash.delete(k)
+            end
+          end
+        end
+
+        nil
+      end
+
       # Unload all reloadable constants and features, and clear the list
       # of files to monitor.
       def clear!
