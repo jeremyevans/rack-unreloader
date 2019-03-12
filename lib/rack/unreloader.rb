@@ -58,12 +58,13 @@ module Rack
       @app_block = block
       if opts.fetch(:reload, true)
         @cooldown = opts.fetch(:cooldown, 1)
+        @handle_reload_errors = opts[:handle_reload_errors]
         @last = Time.at(0)
         Kernel.require 'rack/unreloader/reloader'
         @reloader = Reloader.new(opts)
         reload!
       else
-        @reloader = @cooldown = false
+        @reloader = @cooldown = @handle_reload_errors = false
       end
     end
 
@@ -71,7 +72,13 @@ module Rack
     # Call the app with the environment.
     def call(env)
       if @cooldown && Time.now > @last + @cooldown
-        MUTEX.synchronize{reload!}
+        begin
+          MUTEX.synchronize{reload!}
+        rescue StandardError, ScriptError => e
+          raise unless @handle_reload_errors
+          content = "#{e.class}: #{e}\n#{e.backtrace.join("\n")}"
+          return [500, {'Content-Type' => 'text/plain', 'Content-Length' => content.bytesize.to_s}, [content]]
+        end
         @last = Time.now
       end
       @app_block.call.call(env)

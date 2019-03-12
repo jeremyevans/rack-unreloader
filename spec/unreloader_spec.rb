@@ -157,6 +157,28 @@ describe Rack::Unreloader do
               %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
+  it "should support :handle_reload_errors option to return backtrace if there is an error reloading" do
+    ru(:handle_reload_errors=>true).call({}).must_equal [1]
+    update_app("module App; def self.call(env) @a end; @a ||= []; raise 'foo'; end")
+    rack_response = ru.call({})
+    rack_response[0].must_equal 500
+    rack_response[1]['Content-Type'].must_equal 'text/plain'
+    rack_response[1]['Content-Length'].must_match(rack_response[2][0].bytesize.to_s)
+    rack_response[2][0].must_match(/\/spec\/app\.rb:1/)
+    defined?(::App).must_be_nil
+    update_app(code(2))
+    ru.call({}).must_equal [2]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AUnloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ALoading.*spec/app\.rb\z},
+              %r{\AFailed to load .*spec/app\.rb; removing partially defined constants\z},
+              "Removed constant App",
+              %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
+  end
+
   it "should unload classes in namespaces" do
     ru(:code=>"class Array::App; def self.call(env) @a end; @a ||= []; @a << 1; end", :block=>proc{Array::App}).call({}).must_equal [1]
     update_app("class Array::App; def self.call(env) @a end; @a ||= []; @a << 2; end")

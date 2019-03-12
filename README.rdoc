@@ -62,6 +62,11 @@ When the +:subclasses+ option is given, only subclasses of the given classes
 will be unloaded before reloading the file.  It is recommended that
 you use a +:subclasses+ option when using <tt>Rack::Unreloader</tt>.
 
+When the +:handle_reload_errors+ option is given, most exceptions raised during
+reloading will cause the backtrace to be returned, instead of raising the error
+externally.  This can be useful if no middleware that wrap the Unreloader are
+rescuing exceptions.
+
 == Dependency Handling
 
 If your +app.rb+ requires a +models.rb+ file that you also want to get reloaded:
