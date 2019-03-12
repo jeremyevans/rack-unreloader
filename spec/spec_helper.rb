@@ -1,6 +1,7 @@
 require File.join(File.dirname(File.expand_path(__FILE__)), '../lib/rack/unreloader')
 require 'rubygems'
 $: << 'lib'
+ENV['MT_NO_PLUGINS'] = '1' # Work around stupid autoloading of plugins
 gem 'minitest'
 require 'minitest/autorun'
 require 'minitest/hooks'
