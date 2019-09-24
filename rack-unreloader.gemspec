@@ -16,4 +16,5 @@ detects changes, unloading constants defined in those files before reloading.
 END
   s.add_development_dependency "minitest", '>=5.6.1'
   s.add_development_dependency "minitest-hooks"
+  s.add_development_dependency "minitest-global_expectations"
 end
