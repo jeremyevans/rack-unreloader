@@ -47,6 +47,8 @@ module Rack
     # 
     # :cooldown :: The number of seconds to wait between checks for changed files.
     #              Defaults to 1.  Set to nil/false to not check for changed files.
+    # :handle_reload_errors :: Whether reload to handle reload errors by returning
+    #                          a 500 plain text response with the backtrace.
     # :reload :: Set to false to not setup a reloader, and just have require work
     #            directly.  Should be set to false in production mode.
     # :logger :: A Logger instance which will log information related to reloading.

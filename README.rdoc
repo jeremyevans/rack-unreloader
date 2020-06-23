@@ -2,7 +2,7 @@
 
 Rack::Unreloader is a code reloader for {Rack}[https://github.com/rack/rack].
 It speeds up application development by automatically reloading stale code
-so that you don’t have to restart your dev server every time you change a file.
+so that you don't have to restart your dev server every time you change a file.
 
 Unlike most other code loading libraries for Rack,
 this one ensures that reloads are clean and idempotent
@@ -10,15 +10,7 @@ by _unloading_ relevant constants first.
 
 == Installation
 
-  # Gemfile
-
-  group :development do
-    gem 'rack-unreloader'
-  end
-
-Then
-
-  $ bundle install
+  gem install rack-unreloader
 
 == Source Code
 
@@ -30,7 +22,7 @@ Before:
 
   # config.ru
 
-  require './app.rb'
+  require './app'
 
   run App
 
@@ -50,43 +42,37 @@ If changes are detected, +Rack::Unreloader+ will
 unload all constants defined inside it and then re-require it
 before proceeding with the request.
 
-=== Options
+== Handling Subclasses
 
-[+:subclasses+ (⚠️️ Important)]
+By default, +Rack::Unreloader+ unloads *all* constants defined in +app.rb+.
+That includes third-party libraries, like +Roda+ or +JSON+ in the example below:
 
-    Limit which constants will be unloaded.
+  # app.rb
 
-    By default, +Rack::Unreloader+ unloads *all* constants defined in +app.rb+.
-    That includes third-party libraries,
-    like +Roda+ or +JSON+ in the example below:
+  require 'roda'
+  require 'json'
 
-      # app.rb
+  class App < Roda
+    ...
+  end
 
-      require 'roda'
-      require 'json'
+Unloading these classes/modules isn't just unnecessary, it's dangerous.
+If your own code depends on them, your app will throw a +NameError+ after
+reloading when it tries to access them.
 
-      class App < Roda
-        ...
-      end
+To reload only *subclasses* of +Roda+ (i.e. +App+), use the +:subclasses+
+option:
 
-    Unloading these classes/modules isn’t just unnecessary—it’s dangerous.
-    If your own code depends on them, your app will throw a +NameError+
-    the moment they’re removed.
+  Rack::Unreloader.new(:subclasses=>%w'Roda'){App}
 
-    To reload only *subclasses* of +Roda+ (_i.e.,_ +App+):
+== Handling Errors During Reloading
 
-      Rack::Unreloader.new(:subclasses=>%w'Roda'){App}
+By default, +Rack::Unreloader+ instances do not handle exceptions raised
+during reloading, so that it may be rescued elsewhere (e.g. manually or by middleware).
+You can use the +:handle_reload_errors+ option to send the backtrace directly to the
+client as the HTTP response:
 
-[+:handle_reload_errors+]
-
-    Define what happens with errors raised during reloading
-    (_e.g.,_ if +Roda+ is unloaded and that causes a +NameError+).
-
-    The default behavior is to leave the error unhandled
-    so that it may be rescued elsewhere (_e.g.,_ manually or by middleware).
-    Set to +true+ to send the backtrace directly to the client as the HTTP response:
-
-      Rack::Unreloader.new(handle_reload_errors: true){App}
+  Rack::Unreloader.new(handle_reload_errors: true){App}
 
 == Dependency Handling
 
