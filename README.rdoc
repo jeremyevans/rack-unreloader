@@ -1,16 +1,24 @@
 = Rack::Unreloader
 
-Rack::Unreloader is a rack library that reloads application files when it
-detects changes, unloading constants defined in those files before reloading.
-Like other rack libraries for reloading, this can make application development
-much faster, as you don't need to restart the whole application when you change
-a single file.  Unlike most other rack libraries for reloading, this unloads
-constants before requiring files, avoiding issues when loading a file is not
-idempotent.
+Rack::Unreloader is a code reloader for {Rack}[https://github.com/rack/rack].
+It speeds up application development by automatically reloading stale code
+so that you don’t have to restart your dev server every time you change a file.
+
+Unlike most other code loading libraries for Rack,
+this one ensures that reloads are clean and idempotent
+by _unloading_ relevant constants first.
 
 == Installation
 
-  gem install rack-unreloader
+  # Gemfile
+
+  group :development do
+    gem 'rack-unreloader'
+  end
+
+Then
+
+  $ bundle install
 
 == Source Code
 
@@ -18,54 +26,67 @@ Source code is available on GitHub at https://github.com/jeremyevans/rack-unrelo
 
 == Basic Usage
 
-Assuming a basic web application stored in +app.rb+:
+Before:
 
-  require 'roda'
-
-  class App < Roda
-    route do |r|
-      "Hello world!"
-    end
-  end
-
-With a basic +config.ru+ like this:
+  # config.ru
 
   require './app.rb'
+
   run App
 
-Change +config.ru+ to:
+After:
+
+  # config.ru
 
   require 'rack/unreloader'
   Unreloader = Rack::Unreloader.new{App}
-  require 'roda'
   Unreloader.require './app.rb'
+
   run Unreloader
 
-The block you pass to Rack::Unreloader.new should return the rack application
-to use.  If you make any changes to +app.rb+, <tt>Rack::Unreloader</tt> will remove any
-constants defined by requiring +app.rb+, and rerequire the file.
+Now, +app.rb+ will be monitored for changes on each incoming HTTP request.
 
-Note that this causes problems if +app.rb+ loads any new libraries that define
-constants, as it will unload those constants first.  This is why the example
-code requires the +roda+ library normally before requiring +app.rb+ using
-<tt>Rack::Unreloader</tt>.
+If changes are detected, +Rack::Unreloader+ will
+unload all constants defined inside it and then re-require it
+before proceeding with the request.
 
-However, if +app.rb+ requires more than a single file, it is more
-practical to tell <tt>Rack::Unreloader</tt> to only unload specific subclasses:
+=== Options
 
-  require 'rack/unreloader'
-  Unreloader = Rack::Unreloader.new(:subclasses=>%w'Roda'){App}
-  Unreloader.require './app.rb'
-  run Unreloader
+[+:subclasses+ (⚠️️ Important)]
 
-When the +:subclasses+ option is given, only subclasses of the given classes
-will be unloaded before reloading the file.  It is recommended that
-you use a +:subclasses+ option when using <tt>Rack::Unreloader</tt>.
+    Limit which constants will be unloaded.
 
-When the +:handle_reload_errors+ option is given, most exceptions raised during
-reloading will cause the backtrace to be returned, instead of raising the error
-externally.  This can be useful if no middleware that wrap the Unreloader are
-rescuing exceptions.
+    By default, +Rack::Unreloader+ unloads *all* constants defined in +app.rb+.
+    That includes third-party libraries,
+    like +Roda+ or +JSON+ in the example below:
+
+      # app.rb
+
+      require 'roda'
+      require 'json'
+
+      class App < Roda
+        ...
+      end
+
+    Unloading these classes/modules isn’t just unnecessary—it’s dangerous.
+    If your own code depends on them, your app will throw a +NameError+
+    the moment they’re removed.
+
+    To reload only *subclasses* of +Roda+ (_i.e.,_ +App+):
+
+      Rack::Unreloader.new(:subclasses=>%w'Roda'){App}
+
+[+:handle_reload_errors+]
+
+    Define what happens with errors raised during reloading
+    (_e.g.,_ if +Roda+ is unloaded and that causes a +NameError+).
+
+    The default behavior is to leave the error unhandled
+    so that it may be rescued elsewhere (_e.g.,_ manually or by middleware).
+    Set to +true+ to send the backtrace directly to the client as the HTTP response:
+
+      Rack::Unreloader.new(handle_reload_errors: true){App}
 
 == Dependency Handling
 
@@ -88,7 +109,7 @@ to using:
 
   Unreloader.require './models.rb'
 
-The reason that the <tt>Rack::Unreloader</tt> instance is assigned to a constant in
+The reason that the +Rack::Unreloader+ instance is assigned to a constant in
 +config.ru+ is to make it easy to add reloadable dependencies in this way.
 
 It's even a better idea to require this dependency manually in +config.ru+,
@@ -214,7 +235,7 @@ automatically. This applies to files in subdirectories of that directory as well
 
 == Speeding Things Up
 
-By default, <tt>Rack::Unreloader</tt> uses +ObjectSpace+ before and after requiring each
+By default, +Rack::Unreloader+ uses +ObjectSpace+ before and after requiring each
 file that it monitors, to see which classes and modules were defined by the
 require.  This is slow for large numbers of files.  In general use it isn't an
 issue as generally only a single file will be changed at a time, but it can
@@ -223,7 +244,7 @@ time.
 
 If you want to speed things up, you can provide a block to Rack::Unreloader#require,
 which will take the file name, and should return the name of the constants or array
-of constants to unload.  If you do this, <tt>Rack::Unreloader</tt> will no longer need
+of constants to unload.  If you do this, +Rack::Unreloader+ will no longer need
 to use +ObjectSpace+, which substantially speeds up startup.  For example, if all of
 your models just use a capitalized version of the filename:
 
@@ -236,7 +257,7 @@ block return the :ObjectSpace symbol.
 
 == chroot Support
 
-<tt>Rack::Unreloader#strip_path_prefix</tt> exists for supporting reloading in
++Rack::Unreloader#strip_path_prefix+ exists for supporting reloading in
 chroot environments, where you chroot an application after it has been fully
 loaded, but still want to pick up changes to files inside the chroot. Example:
 
@@ -248,7 +269,7 @@ $LOADED_FEATURES, as that is necessary for correct operation.
 
 == Usage Outside Rack
 
-While <tt>Rack::Unreloader</tt> is usually in the development of rack applications,
+While +Rack::Unreloader+ is usually in the development of rack applications,
 it doesn't depend on rack.  You can just instantiate an instance of Unreloader and
 use it to handle reloading in any ruby application, just by using the +require+ and
 +record_dependency+ to set up the metadata, and calling +reload!+ manually to
