@@ -288,6 +288,20 @@ describe Rack::Unreloader do
     ru.call({}).must_equal 4
   end
 
+  it "should handle modules where name raises an exception" do
+    m = Module.new{def self.name; raise end}
+    ru(:code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).must_equal [1]
+    update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
+    ru.call({}).must_equal [2]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\AUnloading.*spec/app\.rb\z},
+              "Removed constant App",
+              %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z}
+    m
+  end
+
   describe "with a directory" do
     include Minitest::Hooks
 

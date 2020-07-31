@@ -413,7 +413,7 @@ module Rack
         rs = Set.new
 
         ::ObjectSpace.each_object(Module).each do |mod|
-          if !mod.name.to_s.empty? && monitored_module?(mod)
+          if !(mod.name rescue next).to_s.empty? && monitored_module?(mod)
             rs << mod
           end
         end
