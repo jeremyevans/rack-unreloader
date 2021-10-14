@@ -364,7 +364,7 @@ module Rack
       # Store the currently loaded classes and features, so in case of an error
       # this state can be rolled back to.
       def prepare(name)
-        file = remove(name)
+        remove(name)
         @old_entries[name] = {:features => monitored_features}
         if constants = constants_for(name)
           defs = constants.select{|c| constant_defined?(c)}

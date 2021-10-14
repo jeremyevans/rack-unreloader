@@ -25,7 +25,7 @@ end
 
 class Minitest::Spec
   def code(i)
-    "class App; def self.call(env) @a end; @a ||= []; @a << #{i}; end"
+    "class App; class << self; def call(env) @a end; alias call call; end; @a ||= []; @a << #{i}; end"
   end
 
   def update_app(code, file=@filename)

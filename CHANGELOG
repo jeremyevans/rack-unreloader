@@ -1,5 +1,7 @@
 = master
 
+* Avoid warnings in verbose warning mode on Ruby 3+ (jeremyevans)
+
 * Check directory timestamps before looking for added or removed files (jeremyevans)
 
 * Add support for a :delete_hook option to Unreloader#require, called when a file is deleted (jeremyevans)

@@ -131,7 +131,7 @@ describe Rack::Unreloader do
   end
 
   it "should not unload modules by name if :subclasses option used and module not present" do
-    ru(:subclasses=>'Foo', :code=>"module App; def self.call(env) @a end; @a ||= []; @a << 1; end").call({}).must_equal [1]
+    ru(:subclasses=>'Foo', :code=>"module App; def self.call(env) @a end; class << self; alias call call; end; @a ||= []; @a << 1; end").call({}).must_equal [1]
     update_app("module App; def self.call(env) @a end; @a ||= []; @a << 2; end")
     ru.call({}).must_equal [1, 2]
     log_match %r{\ALoading.*spec/app\.rb\z},
@@ -218,7 +218,7 @@ describe Rack::Unreloader do
 
   it "should allow specifying proc for which constants get removed" do
     base_ru
-    update_app("class App; def self.call(env) [@a, App2.a] end; @a ||= []; @a << 1; end; class App2; def self.a; @a end; @a ||= []; @a << 2; end")
+    update_app("class App; def self.call(env) [@a, App2.a] end; class << self; alias call call; end; @a ||= []; @a << 1; end; class App2; def self.a; @a end; class << self; alias a a; end; @a ||= []; @a << 2; end")
     @ru.require('spec/app.rb'){|f| File.basename(f).sub(/\.rb/, '').capitalize}
     ru.call({}).must_equal [[1], [2]]
     update_app("class App; def self.call(env) [@a, App2.a] end; @a ||= []; @a << 3; end; class App2; def self.a; @a end; @a ||= []; @a << 4; end")

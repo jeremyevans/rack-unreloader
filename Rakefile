@@ -12,7 +12,7 @@ end
 
 desc "Run specs"
 task :spec do
-  sh "#{FileUtils::RUBY} spec/unreloader_spec.rb"
+  sh "#{FileUtils::RUBY} #{'-v ' if RUBY_VERSION >= '3'}spec/unreloader_spec.rb"
 end
 
 task :default => :spec
