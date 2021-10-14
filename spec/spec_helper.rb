@@ -29,8 +29,18 @@ class Minitest::Spec
   end
 
   def update_app(code, file=@filename)
-    ru.reloader.set_modified_time(file, @i += 1) if ru.reloader
+    if ru.reloader
+      ru.reloader.set_modified_time(File.dirname(file), @i += 1) unless File.file?(file)
+      ru.reloader.set_modified_time(file, @i += 1)
+    end
     File.open(file, 'wb'){|f| f.write(code)}
+  end
+
+  def file_delete(file)
+    if ru.reloader
+      ru.reloader.set_modified_time(File.dirname(file), @i += 1)
+    end
+    File.delete(file)
   end
 
   def logger

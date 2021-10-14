@@ -23,9 +23,10 @@ module Rack
         @monitor_files = {}
 
         # Hash of directories being monitored for changes, keyed by absolute path of directory name,
-        # with values being the an array with the last modified time (or nil if the directory has not
-        # yet been loaded), an array of files in the directory, and a block to pass to
-        # require_dependency for new files.
+        # with values being the an array with a hash of modified times for the directory and
+        # subdirectories (or nil if the directory has not yet been checked), an array of files in
+        # the directory, a block to pass to require_dependency for new files, and the delete_hook
+        # for the files in the directory.
         @monitor_dirs = {}
 
         # Hash of procs returning constants defined in files, keyed by absolute path
@@ -239,10 +240,21 @@ module Rack
         @logger.info(s) if @logger
       end
 
+      # A hash of modify times for all subdirectories of the given directory.
+      def subdir_times(dir)
+        h = {}
+        Find.find(dir) do |f|
+          h[f] = modified_at(f) if F.directory?(f)
+        end
+        h
+      end
+
       # Check a monitored directory for changes, adding new files and removing
       # deleted files.
       def check_monitor_dir(dir, changed_files=nil)
-        time, files, block, delete_hook = @monitor_dirs[dir]
+        subdir_times, files, block, delete_hook = md = @monitor_dirs[dir]
+        return if subdir_times && subdir_times.all?{|subdir, time| F.directory?(subdir) && modified_at(subdir) == time}
+        md[0] = subdir_times(dir)
 
         cur_files = Unreloader.ruby_files(dir)
         return if files == cur_files

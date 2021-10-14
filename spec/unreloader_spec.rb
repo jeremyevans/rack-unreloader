@@ -32,7 +32,7 @@ describe Rack::Unreloader do
 
   it "should stop monitoring file for changes if it is deleted constants contained in file and reload file if file changes" do
     ru.call({}).must_equal [1]
-    File.delete('spec/app.rb')
+    file_delete('spec/app.rb')
     proc{ru.call({})}.must_raise NameError
     log_match %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z},
@@ -312,7 +312,7 @@ describe Rack::Unreloader do
     end
 
     after do
-      Dir['spec/dir/**/*.rb'].each{|f| File.delete(f)}
+      Dir['spec/dir/**/*.rb'].each{|f| file_delete(f)}
     end
 
     after(:all) do
@@ -367,7 +367,7 @@ describe Rack::Unreloader do
       ru.call({}).must_equal 3
       update_app("module C; B = 4; end", 'spec/dir/subdir2/app_mod2.rb')
       ru.call({}).must_equal 4
-      File.delete 'spec/dir/subdir/app_mod.rb'
+      file_delete 'spec/dir/subdir/app_mod.rb'
       ru.call({}).must_equal 0
     end
 
@@ -388,7 +388,7 @@ describe Rack::Unreloader do
       ru.call({}).must_equal 561
       update_app("class App; end", 'spec/dir/appa.rb')
       ru.call({}).must_equal 61
-      File.delete 'spec/dir/appb.rb'
+      file_delete 'spec/dir/appb.rb'
       ru.call({}).must_equal 1
     end
 
@@ -454,7 +454,7 @@ describe Rack::Unreloader do
       update_app("App.call[:foo] = 1", 'spec/dir/a.rb')
       @ru.require('spec/app.rb')
       ru.call({}).must_equal(:foo=>1)
-      File.delete('spec/dir/a.rb')
+      file_delete('spec/dir/a.rb')
       update_app("App.call[:foo] = 2", 'spec/dir/b.rb')
       ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
@@ -471,7 +471,7 @@ describe Rack::Unreloader do
       update_app("App.call[:foo] = 1", 'spec/dir/subdir/a.rb')
       @ru.require('spec/app.rb')
       ru.call({}).must_equal(:foo=>1)
-      File.delete('spec/dir/subdir/a.rb')
+      file_delete('spec/dir/subdir/a.rb')
       update_app("App.call[:foo] = 2", 'spec/dir/subdir/b.rb')
       ru.call({}).must_equal(:foo=>2)
       log_match %r{\ALoading.*spec/app\.rb\z},
@@ -490,14 +490,14 @@ describe Rack::Unreloader do
       update_app("App.call[:foo] = 1", 'spec/dir/a.rb')
       @ru.require('spec/app.rb', :delete_hook=>proc{|f| deletes << f})
       ru.call({}).must_equal(:foo=>1)
-      File.delete('spec/dir/a.rb')
+      file_delete('spec/dir/a.rb')
       update_app("App.call[:foo] = 2", 'spec/dir/b.rb')
       ru.call({}).must_equal(:foo=>2)
       deletes.must_equal [File.expand_path('spec/dir/a.rb')]
-      File.delete('spec/dir/b.rb')
+      file_delete('spec/dir/b.rb')
       ru.call({}).must_equal(:foo=>2)
       deletes.must_equal [File.expand_path('spec/dir/a.rb'), File.expand_path('spec/dir/b.rb')]
-      File.delete('spec/app.rb')
+      file_delete('spec/app.rb')
       proc{ru.call({})}.must_raise NameError
       deletes.must_equal [File.expand_path('spec/dir/a.rb'), File.expand_path('spec/dir/b.rb'), File.expand_path('spec/app.rb')]
       log_match %r{\ALoading.*spec/app\.rb\z},

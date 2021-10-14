@@ -1,5 +1,7 @@
 = master
 
+* Check directory timestamps before looking for added or removed files (jeremyevans)
+
 * Add support for a :delete_hook option to Unreloader#require, called when a file is deleted (jeremyevans)
 
 * Handle cases where Module#name raises an exception (jeremyevans) (#9)
