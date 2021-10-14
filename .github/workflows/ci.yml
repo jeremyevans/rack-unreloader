@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: [ "1.9.3", "2.0.0", 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, "3.0", jruby-9.1, jruby-9.2, jruby-9.3 ]
+    name: ${{ matrix.ruby }}
+    env:
+      BUNDLE_GEMFILE: .ci.gemfile
+    steps:
+    - uses: actions/checkout@v2
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby }}
+        bundler-cache: true
+    - run: bundle exec rake

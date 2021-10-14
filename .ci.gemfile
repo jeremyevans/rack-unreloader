@@ -1,0 +1,9 @@
+source 'https://rubygems.org'
+
+gem 'minitest-global_expectations'
+gem 'minitest-hooks'
+
+if RUBY_VERSION < '2.4.0'
+  gem 'minitest', '5.11.3'
+  gem 'rake', '<10.0.0'
+end
