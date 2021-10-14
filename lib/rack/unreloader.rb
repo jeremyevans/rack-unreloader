@@ -9,14 +9,14 @@ module Rack
     MUTEX = Monitor.new
 
     # Reference to ::File as File would return Rack::File by default.
-    F = ::File
+    File = ::File
 
     # Given the list of paths, find all matching files, or matching ruby files
     # in subdirecories if given a directory, and return an array of expanded
     # paths.
     def self.expand_directory_paths(paths)
       expand_paths(paths).
-        map{|f| F.directory?(f) ? ruby_files(f) : f}.
+        map{|f| File.directory?(f) ? ruby_files(f) : f}.
         flatten
     end
 
@@ -27,7 +27,7 @@ module Rack
         flatten.
         map{|path| Dir.glob(path).sort_by{|filename| filename.count('/')}}.
         flatten.
-        map{|path| F.expand_path(path)}.
+        map{|path| File.expand_path(path)}.
         uniq
     end
 

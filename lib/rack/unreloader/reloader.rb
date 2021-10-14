@@ -3,7 +3,7 @@ require 'set'
 module Rack
   class Unreloader
     class Reloader
-      F = ::File
+      File = ::File
 
       # Regexp for valid constant names, to prevent code execution.
       VALID_CONSTANT_NAME_REGEXP = /\A(?:::)?([A-Z]\w*(?:::[A-Z]\w*)*)\z/.freeze
@@ -119,7 +119,7 @@ module Rack
         order.concat(files)
         order.uniq!
 
-        if F.directory?(path)
+        if File.directory?(path)
           (@monitor_files.keys & Unreloader.ruby_files(path)).each do |file|
             record_dependency(file, files)
           end
@@ -141,7 +141,7 @@ module Rack
         delete_hooks = []
 
         @monitor_files.to_a.each do |file, (time, delete_hook)|
-          if F.file?(file)
+          if File.file?(file)
             if file_changed?(file, time)
               changed_files << file
             end
@@ -159,7 +159,7 @@ module Rack
         unless @dependencies.empty?
           changed_files = reload_files(changed_files)
           changed_files.flatten!
-          changed_files.map!{|f| F.directory?(f) ? Unreloader.ruby_files(f) : f}
+          changed_files.map!{|f| File.directory?(f) ? Unreloader.ruby_files(f) : f}
           changed_files.flatten!
           changed_files.uniq!
           
@@ -169,7 +169,7 @@ module Rack
         end
 
         unless @skip_reload.empty?
-          skip_reload = @skip_reload.map{|f| F.directory?(f) ? Unreloader.ruby_files(f) : f}
+          skip_reload = @skip_reload.map{|f| File.directory?(f) ? Unreloader.ruby_files(f) : f}
           skip_reload.flatten!
           skip_reload.uniq!
           changed_files -= skip_reload
@@ -188,7 +188,7 @@ module Rack
         error = nil 
 
         Unreloader.expand_paths(paths).each do |file|
-          if F.directory?(file)
+          if File.directory?(file)
             @monitor_dirs[file] = [nil, [], block, delete_hook]
             check_monitor_dir(file)
             next
@@ -244,7 +244,7 @@ module Rack
       def subdir_times(dir)
         h = {}
         Find.find(dir) do |f|
-          h[f] = modified_at(f) if F.directory?(f)
+          h[f] = modified_at(f) if File.directory?(f)
         end
         h
       end
@@ -253,7 +253,7 @@ module Rack
       # deleted files.
       def check_monitor_dir(dir, changed_files=nil)
         subdir_times, files, block, delete_hook = md = @monitor_dirs[dir]
-        return if subdir_times && subdir_times.all?{|subdir, time| F.directory?(subdir) && modified_at(subdir) == time}
+        return if subdir_times && subdir_times.all?{|subdir, time| File.directory?(subdir) && modified_at(subdir) == time}
         md[0] = subdir_times(dir)
 
         cur_files = Unreloader.ruby_files(dir)
@@ -494,7 +494,7 @@ module Rack
       # to base the reloading on something other than the file's modification
       # time.
       def modified_at(file)
-        F.mtime(file)
+        File.mtime(file)
       end
     end
   end
