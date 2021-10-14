@@ -87,9 +87,12 @@ module Rack
     end
 
     # Add a file glob or array of file globs to monitor for changes.
-    def require(paths, &block)
+    # Options:
+    # :delete_hook :: When a file being monitored is deleted, call
+    #                 this hook with the path of the deleted file.
+    def require(paths, opts={}, &block)
       if @reloader
-        @reloader.require_dependencies(paths, &block)
+        @reloader.require_dependencies(paths, opts, &block)
       else
         Unreloader.expand_directory_paths(paths).each{|f| super(f)}
       end

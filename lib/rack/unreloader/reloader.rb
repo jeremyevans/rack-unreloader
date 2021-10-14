@@ -18,7 +18,8 @@ module Rack
         @classes = opts[:subclasses] ?  Array(opts[:subclasses]).map(&:to_s) : %w'Object'
 
         # Hash of files being monitored for changes, keyed by absolute path of file name,
-        # with values being the last modified time (or nil if the file has not yet been loaded).
+        # with values being an array containing the last modified time (or nil if the file has
+        # not yet been loaded) and the delete hook.
         @monitor_files = {}
 
         # Hash of directories being monitored for changes, keyed by absolute path of directory name,
@@ -136,18 +137,21 @@ module Rack
         end
 
         removed_files = []
+        delete_hooks = []
 
-        @monitor_files.to_a.each do |file, time|
+        @monitor_files.to_a.each do |file, (time, delete_hook)|
           if F.file?(file)
             if file_changed?(file, time)
               changed_files << file
             end
           else
+            delete_hooks << [delete_hook, file] if delete_hook
             removed_files << file
           end
         end
 
         remove_files(removed_files)
+        delete_hooks.each{|hook, file| hook.call(file)}
 
         return if changed_files.empty?
 
@@ -177,18 +181,19 @@ module Rack
 
       # Require the given dependencies, monitoring them for changes.
       # Paths should be a file glob or an array of file globs.
-      def require_dependencies(paths, &block)
+      def require_dependencies(paths, opts={}, &block)
         options = {:cyclic => true}
+        delete_hook = opts[:delete_hook]
         error = nil 
 
         Unreloader.expand_paths(paths).each do |file|
           if F.directory?(file)
-            @monitor_dirs[file] = [nil, [], block]
+            @monitor_dirs[file] = [nil, [], block, delete_hook]
             check_monitor_dir(file)
             next
           else
             @constants_defined[file] = block
-            @monitor_files[file] = nil
+            @monitor_files[file] = [nil, delete_hook]
           end
 
           begin
@@ -237,7 +242,7 @@ module Rack
       # Check a monitored directory for changes, adding new files and removing
       # deleted files.
       def check_monitor_dir(dir, changed_files=nil)
-        time, files, block = @monitor_dirs[dir]
+        time, files, block, delete_hook = @monitor_dirs[dir]
 
         cur_files = Unreloader.ruby_files(dir)
         return if files == cur_files
@@ -250,8 +255,11 @@ module Rack
         end
 
         remove_files(removed_files)
+        if delete_hook
+          removed_files.each{|f| delete_hook.call(f)}
+        end
 
-        require_dependencies(new_files, &block)
+        require_dependencies(new_files, :delete_hook=>delete_hook, &block)
 
         new_files.each do |file|
           if deps = @dependencies[dir]
@@ -383,7 +391,7 @@ module Rack
 
         @files[name] = entry
         @old_entries.delete(name)
-        @monitor_files[name] = modified_at(name)
+        @monitor_files[name][0] = modified_at(name)
 
         defs, not_defs = entry[:constants].partition{|c| constant_defined?(c)}
         unless not_defs.empty?
@@ -466,7 +474,7 @@ module Rack
       end
 
       # Returns true if the file is new or it's modification time changed.
-      def file_changed?(file, time = @monitor_files[file])
+      def file_changed?(file, time = @monitor_files[file][0])
         !time || modified_at(file) > time
       end
 

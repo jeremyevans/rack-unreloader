@@ -219,6 +219,17 @@ The advantage for doing this is that new files added to the directory will be
 picked up automatically, and files deleted from the directory will be removed
 automatically. This applies to files in subdirectories of that directory as well.
 
+The +require+ method also supports a +:delete_hook+ option.  This option sets
+a hook that is called when the related file is deleted.  This is useful if adding
+a new file or reloading an existing file will handle things correctly, but
+removing the file will not.  One common case for this is when you have a shared data
+structure that is updated by the files, where adding or reloading the file will
+update the data structure, but deleting will not, and will leave stale entries in
+the data structure.  You can use the +:delete_hook+ option to remove the entries
+related to the file in the data structure:
+
+  Unreloader.require 'models', :delete_hook=>proc{|f| SHARED_HASH.delete(f)}
+
 == Speeding Things Up
 
 By default, +Rack::Unreloader+ uses +ObjectSpace+ before and after requiring each

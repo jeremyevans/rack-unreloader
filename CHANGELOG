@@ -1,5 +1,7 @@
 = master
 
+* Add support for a :delete_hook option to Unreloader#require, called when a file is deleted (jeremyevans)
+
 * Handle cases where Module#name raises an exception (jeremyevans) (#9)
 
 = 1.7.0 (2019-03-18)

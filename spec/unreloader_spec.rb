@@ -481,5 +481,35 @@ describe Rack::Unreloader do
                 %r{\AUnloading .*/spec/dir/subdir/a.rb\z},
                 %r{\ALoading.*spec/dir/subdir/b\.rb\z}
     end
+
+    it "should call hook when dropping files deleted from the directory" do
+      base_ru
+      deletes = []
+      Object.const_set(:Deletes, deletes)
+      update_app("class App; @a = {}; def self.call(env=nil) @a end; end; RU.require('spec/dir', :delete_hook=>proc{|f| Deletes << f})")
+      update_app("App.call[:foo] = 1", 'spec/dir/a.rb')
+      @ru.require('spec/app.rb', :delete_hook=>proc{|f| deletes << f})
+      ru.call({}).must_equal(:foo=>1)
+      File.delete('spec/dir/a.rb')
+      update_app("App.call[:foo] = 2", 'spec/dir/b.rb')
+      ru.call({}).must_equal(:foo=>2)
+      deletes.must_equal [File.expand_path('spec/dir/a.rb')]
+      File.delete('spec/dir/b.rb')
+      ru.call({}).must_equal(:foo=>2)
+      deletes.must_equal [File.expand_path('spec/dir/a.rb'), File.expand_path('spec/dir/b.rb')]
+      File.delete('spec/app.rb')
+      proc{ru.call({})}.must_raise NameError
+      deletes.must_equal [File.expand_path('spec/dir/a.rb'), File.expand_path('spec/dir/b.rb'), File.expand_path('spec/app.rb')]
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ALoading.*spec/dir/a\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z},
+                %r{\ANew features in .*spec/app\.rb: .*spec/dir/a\.rb\z},
+                %r{\AUnloading .*/spec/dir/a.rb\z},
+                %r{\ALoading.*spec/dir/b\.rb\z},
+                %r{\AUnloading .*/spec/dir/b.rb\z},
+                %r{\AUnloading .*/spec/app.rb\z},
+                %r{\ARemoved constant App\z}
+      Object.send(:remove_const, :Deletes)
+    end
   end
 end
