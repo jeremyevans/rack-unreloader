@@ -6,7 +6,8 @@ so that you don't have to restart your dev server every time you change a file.
 
 Unlike most other code loading libraries for Rack,
 this one ensures that reloads are clean and idempotent
-by _unloading_ relevant constants first.
+by _unloading_ relevant constants first, and it does so incrementally, only
+reloading the files that are modified.
 
 == Installation
 
