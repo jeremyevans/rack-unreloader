@@ -1,4 +1,4 @@
-= master
+= 1.8.0 (2021-10-15)
 
 * Avoid warnings in verbose warning mode on Ruby 3+ (jeremyevans)
 
