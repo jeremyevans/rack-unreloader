@@ -1,4 +1,4 @@
-require File.join(File.dirname(File.expand_path(__FILE__)), 'spec_helper')
+require_relative 'spec_helper'
 
 describe Rack::Unreloader do
   it "should not reload files automatically if cooldown option is nil" do

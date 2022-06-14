@@ -62,7 +62,7 @@ module Rack
         @cooldown = opts.fetch(:cooldown, 1)
         @handle_reload_errors = opts[:handle_reload_errors]
         @last = Time.at(0)
-        Kernel.require 'rack/unreloader/reloader'
+        require_relative 'unreloader/reloader'
         @reloader = Reloader.new(opts)
         reload!
       else

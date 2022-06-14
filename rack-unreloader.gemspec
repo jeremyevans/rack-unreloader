@@ -20,7 +20,7 @@ END
     'mailing_list_uri'  => 'https://github.com/jeremyevans/rack-unreloader/discussions',
     'source_code_uri'   => 'https://github.com/jeremyevans/rack-unreloader'
   }
-  s.required_ruby_version = ">= 1.8.7"
+  s.required_ruby_version = ">= 1.9.2"
   s.add_development_dependency "minitest", '>=5.6.1'
   s.add_development_dependency "minitest-hooks"
   s.add_development_dependency "minitest-global_expectations"
