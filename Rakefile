@@ -27,19 +27,11 @@ begin
 rescue Gem::LoadError
 end
 
-rdoc_task_class = begin
-  require "rdoc/task"
-  RDoc::Task
-rescue LoadError
-  require "rake/rdoctask"
-  Rake::RDocTask
-end
-
+require "rdoc/task"
 RDOC_OPTS = RDOC_DEFAULT_OPTS + ['--main', 'README.rdoc']
 
-rdoc_task_class.new do |rdoc|
+RDoc::Task.new do |rdoc|
   rdoc.rdoc_dir = "rdoc"
   rdoc.options += RDOC_OPTS
   rdoc.rdoc_files.add %w"README.rdoc CHANGELOG MIT-LICENSE lib/**/*.rb"
 end
-
