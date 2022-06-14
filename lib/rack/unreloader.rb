@@ -15,20 +15,21 @@ module Rack
     # in subdirecories if given a directory, and return an array of expanded
     # paths.
     def self.expand_directory_paths(paths)
-      expand_paths(paths).
-        map{|f| File.directory?(f) ? ruby_files(f) : f}.
-        flatten
+      paths = expand_paths(paths)
+      paths.map!{|f| File.directory?(f) ? ruby_files(f) : f}
+      paths.flatten!
+      paths
     end
 
     # Given the path glob or array of path globs, find all matching files
     # or directories, and return an array of expanded paths.
     def self.expand_paths(paths)
-      Array(paths).
-        flatten.
-        map{|path| Dir.glob(path).sort_by{|filename| filename.count('/')}}.
-        flatten.
-        map{|path| File.expand_path(path)}.
-        uniq
+      paths = Array(paths).flatten
+      paths.map!{|path| Dir.glob(path).sort_by!{|filename| filename.count('/')}}
+      paths.flatten!
+      paths.map!{|path| File.expand_path(path)}
+      paths.uniq!
+      paths
     end
 
     # The .rb files in the given directory or any subdirectory.
