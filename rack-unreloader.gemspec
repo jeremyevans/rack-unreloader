@@ -9,7 +9,7 @@ spec = Gem::Specification.new do |s|
   s.author = "Jeremy Evans"
   s.email = "code@jeremyevans.net"
   s.homepage = "http://github.com/jeremyevans/rack-unreloader"
-  s.files = %w(MIT-LICENSE CHANGELOG README.rdoc Rakefile) + Dir["{spec,lib}/**/*.rb"]
+  s.files = %w(MIT-LICENSE CHANGELOG README.rdoc) + Dir["lib/**/*.rb"]
   s.description = <<END
 Rack::Unreloader is a rack middleware that reloads application files when it
 detects changes, unloading constants defined in those files before reloading.
