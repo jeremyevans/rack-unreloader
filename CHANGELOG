@@ -1,5 +1,7 @@
 = master
 
+* Drop Unreloader#strip_path_prefix (jeremyevans)
+
 * Drop Ruby 1.8 support (jeremyevans)
 
 = 1.8.0 (2021-10-15)
