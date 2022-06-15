@@ -8,9 +8,6 @@ module Rack
       # Regexp for valid constant names, to prevent code execution.
       VALID_CONSTANT_NAME_REGEXP = /\A(?:::)?([A-Z]\w*(?:::[A-Z]\w*)*)\z/.freeze
 
-      # Options hash to force loading of files even if they haven't changed.
-      FORCE = {:force=>true}.freeze
-
       # Setup the reloader.  Supports :logger and :subclasses options, see
       # Rack::Unloader.new for details.
       def initialize(opts={})
@@ -127,8 +124,11 @@ module Rack
           changed_files -= Unreloader.expand_directory_paths(@skip_reload)
         end
 
+        changed_files.select! do |file|
+          @monitor_files.has_key?(file)
+        end
         changed_files.each do |file|
-          safe_load(file, FORCE)
+          safe_load(file)
         end
       end
 
@@ -253,9 +253,6 @@ module Rack
       # by the require, and rolling back the constants and features if there
       # are any errors.
       def safe_load(file, options={})
-        return unless @monitor_files.has_key?(file)
-        return unless options[:force] || file_changed?(file)
-
         prepare(file) # might call #safe_load recursively
         log "Loading #{file}"
         begin
