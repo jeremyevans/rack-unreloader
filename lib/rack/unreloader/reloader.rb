@@ -116,11 +116,7 @@ module Rack
         return if changed_files.empty?
 
         unless @dependencies.empty?
-          changed_files = reload_files(changed_files)
-          changed_files.flatten!
-          changed_files.map!{|f| File.directory?(f) ? Unreloader.ruby_files(f) : f}
-          changed_files.flatten!
-          changed_files.uniq!
+          changed_files = Unreloader.expand_directory_paths(reload_files(changed_files))
           
           order = @dependency_order
           order &= changed_files
@@ -128,10 +124,7 @@ module Rack
         end
 
         unless @skip_reload.empty?
-          skip_reload = @skip_reload.map{|f| File.directory?(f) ? Unreloader.ruby_files(f) : f}
-          skip_reload.flatten!
-          skip_reload.uniq!
-          changed_files -= skip_reload
+          changed_files -= Unreloader.expand_directory_paths(@skip_reload)
         end
 
         changed_files.each do |file|
