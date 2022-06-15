@@ -302,6 +302,22 @@ describe Rack::Unreloader do
     m
   end
 
+  it "should log syntax errors when requiring" do
+    proc do
+      ru(:code=>'module App')
+    end.must_raise SyntaxError
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\AError: SyntaxError:.*syntax error}
+  end
+
+  it "should log load errors when requiring" do
+    proc do
+      ru(:code=>'require_relative "nonexistant"')
+    end.must_raise LoadError
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ACyclic dependency reload for LoadError:}
+  end
+
   describe "with a directory" do
     include Minitest::Hooks
 

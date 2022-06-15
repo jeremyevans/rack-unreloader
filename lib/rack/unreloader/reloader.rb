@@ -159,14 +159,14 @@ module Rack
           begin
             safe_load(file, options)
           rescue NameError, LoadError => error
-            log "Cyclic dependency reload for #{error}"
+            log "Cyclic dependency reload for #{error.class}: #{error.message}"
           rescue Exception => error
+            log "Error: #{error.class}: #{error.message}"
             break
           end
         end
 
         if error
-          log error
           raise error
         end
       end

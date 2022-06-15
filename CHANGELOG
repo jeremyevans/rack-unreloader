@@ -1,5 +1,7 @@
 = master
 
+* Fix TypeError being raised when requiring a file results in an error (jeremyevans)
+
 * Drop Unreloader#strip_path_prefix (jeremyevans)
 
 * Drop Ruby 1.8 support (jeremyevans)
