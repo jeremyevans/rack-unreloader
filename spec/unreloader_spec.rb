@@ -15,6 +15,9 @@ describe Rack::Unreloader do
     file = 'spec/app_no_reload2.rb'
     File.open(file, 'wb'){|f| f.write('ANR2 = 2')}
     ru.require 'spec/app_no_*2.rb'
+    ru.record_dependency('spec/app_no_*2.rb').must_be_nil
+    ru.record_split_class('spec/app_no_*2.rb').must_be_nil
+    ru.reload!.must_be_nil
     ANR2.must_equal 2
   end
 
@@ -300,6 +303,13 @@ describe Rack::Unreloader do
               %r{\ALoading.*spec/app\.rb\z},
               %r{\ANew classes in .*spec/app\.rb: App\z}
     m
+  end
+
+  it "should handle usage without a logger" do
+    def self.logger; nil end
+    ru.call({}).must_equal [1]
+    update_app(code(2))
+    ru.call({}).must_equal [2]
   end
 
   it "should log syntax errors when requiring" do

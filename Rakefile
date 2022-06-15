@@ -1,7 +1,7 @@
 require "rake"
 require "rake/clean"
 
-CLEAN.include ["rack-unreloader-*.gem", "rdoc"]
+CLEAN.include ["rack-unreloader-*.gem", "rdoc", "coverage"]
 
 desc "Build rack-unreloader gem"
 task :package=>[:clean] do |p|
@@ -13,6 +13,12 @@ end
 desc "Run specs"
 task :spec do
   sh "#{FileUtils::RUBY} #{'-w ' if RUBY_VERSION >= '3'}spec/unreloader_spec.rb"
+end
+
+desc "Run specs with coverage"
+task :spec_cov do
+  ENV['COVERAGE'] = '1'
+  sh "#{FileUtils::RUBY} spec/unreloader_spec.rb"
 end
 
 task :default => :spec
