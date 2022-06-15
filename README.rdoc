@@ -253,18 +253,6 @@ decide that instead of specifying the constants, ObjectSpace should be used to
 automatically determine the constants loaded. You can specify this by having the
 block return the :ObjectSpace symbol.
 
-== chroot Support
-
-+Rack::Unreloader#strip_path_prefix+ exists for supporting reloading in
-chroot environments, where you chroot an application after it has been fully
-loaded, but still want to pick up changes to files inside the chroot. Example:
-
-  Unreloader.strip_path_prefix(Dir.pwd)
-  Dir.chroot(Dir.pwd)
-
-Note that Unreloader.strip_path_prefix also strips the path prefix from
-$LOADED_FEATURES, as that is necessary for correct operation.
-
 == Usage Outside Rack
 
 While +Rack::Unreloader+ is usually in the development of rack applications,
