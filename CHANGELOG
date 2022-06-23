@@ -1,4 +1,4 @@
-= master
+= 2.0.0 (2022-06-23)
 
 * Fix TypeError being raised when requiring a file results in an error (jeremyevans)
 
