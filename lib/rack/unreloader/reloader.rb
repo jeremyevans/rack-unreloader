@@ -5,9 +5,6 @@ module Rack
     class Reloader
       File = ::File
 
-      # Regexp for valid constant names, to prevent code execution.
-      VALID_CONSTANT_NAME_REGEXP = /\A(?:::)?([A-Z]\w*(?:::[A-Z]\w*)*)\z/.freeze
-
       # Setup the reloader.  Supports :logger and :subclasses options, see
       # Rack::Unloader.new for details.
       def initialize(opts={})

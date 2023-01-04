@@ -8,8 +8,11 @@ module Rack
     # Mutex used to synchronize reloads
     MUTEX = Monitor.new
 
-    # Reference to ::File as File would return Rack::File by default.
+    # Reference to ::File as File may return Rack::File by default.
     File = ::File
+
+    # Regexp for valid constant names, to prevent code execution.
+    VALID_CONSTANT_NAME_REGEXP = /\A(?:::)?([A-Z]\w*(?:::[A-Z]\w*)*)\z/.freeze
 
     # Given the list of paths, find all matching files, or matching ruby files
     # in subdirecories if given a directory, and return an array of expanded
@@ -41,11 +44,51 @@ module Rack
       files.sort
     end
 
+    # Autoload the file for the given objects.  objs should be a string, symbol,
+    # or array of them holding a Ruby constant name.  Access to the constant will
+    # load the related file.  A non-nil logger will have output logged to it.
+    def self.autoload_constants(objs, file, logger)
+      strings = Array(objs).map(&:to_s)
+      if strings.empty?
+        # Remove file from $LOADED_FEATURES if there are no constants to autoload.
+        # In general that is because the file is part of another class that will
+        # handle loading the file separately, and if that class is reloaded, we
+        # want to remove the loaded feature so the file can get loaded again.
+        $LOADED_FEATURES.delete(file)
+      else
+        logger.info("Setting up autoload for #{file}: #{strings.join(' ')}") if logger
+        strings.each do |s|
+          obj, mod = split_autoload(s)
+
+          if obj
+            obj.autoload(mod, file)
+          elsif logger
+            logger.info("Invalid constant name: #{s}")
+          end
+        end
+      end
+    end
+
+    # Split the given string into an array. The first is a module/class to add the
+    # autoload to, and the second is the name of the constant to be autoloaded.
+    def self.split_autoload(mod_string)
+      if m = VALID_CONSTANT_NAME_REGEXP.match(mod_string)
+        ns, sep, mod = m[1].rpartition('::')
+        if sep.empty?
+          [Object, mod]
+        else
+          [Object.module_eval("::#{ns}", __FILE__, __LINE__), mod]
+        end
+      end
+    end
+
     # The Rack::Unreloader::Reloader instead related to this instance, if one.
     attr_reader :reloader
 
     # Setup the reloader. Options:
     # 
+    # :autoload :: Whether to allow autoloading.  If not set to true, calls to
+    #              autoload will eagerly require the related files instead of autoloading.
     # :cooldown :: The number of seconds to wait between checks for changed files.
     #              Defaults to 1.  Set to nil/false to not check for changed files.
     # :handle_reload_errors :: Whether reload to handle reload errors by returning
@@ -59,12 +102,19 @@ module Rack
     #                match exactly, since modules don't have superclasses.
     def initialize(opts={}, &block)
       @app_block = block
+      @autoload = opts[:autoload]
+      @logger = opts[:logger]
       if opts.fetch(:reload, true)
         @cooldown = opts.fetch(:cooldown, 1)
         @handle_reload_errors = opts[:handle_reload_errors]
         @last = Time.at(0)
-        require_relative 'unreloader/reloader'
-        @reloader = Reloader.new(opts)
+        if @autoload
+          require_relative('unreloader/autoload_reloader')
+          @reloader = AutoloadReloader.new(opts)
+        else
+          require_relative('unreloader/reloader')
+          @reloader = Reloader.new(opts)
+        end
         reload!
       else
         @reloader = @cooldown = @handle_reload_errors = false
@@ -96,6 +146,24 @@ module Rack
         @reloader.require_dependencies(paths, opts, &block)
       else
         Unreloader.expand_directory_paths(paths).each{|f| super(f)}
+      end
+    end
+
+    # Add a file glob or array of file global to autoload and monitor
+    # for changes. A block is required.  It will be called with the
+    # path to be autoloaded, and should return the symbol for the
+    # constant name to autoload. Accepts the same options as #require.
+    def autoload(paths, opts={}, &block)
+      raise ArgumentError, "block required" unless block
+
+      if @autoload
+        if @reloader
+          @reloader.autoload_dependencies(paths, opts, &block)
+        else
+          Unreloader.expand_directory_paths(paths).each{|f| Unreloader.autoload_constants(yield(f), f, @logger)}
+        end
+      else
+        require(paths, opts, &block)
       end
     end
 

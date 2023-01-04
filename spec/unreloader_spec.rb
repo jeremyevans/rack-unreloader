@@ -33,7 +33,7 @@ describe Rack::Unreloader do
               %r{\ANew classes in .*spec/app\.rb: App\z}
   end
 
-  it "should stop monitoring file for changes if it is deleted constants contained in file and reload file if file changes" do
+  it "should stop monitoring file for changes if it is deleted and remove constants contained in file" do
     ru.call({}).must_equal [1]
     file_delete('spec/app.rb')
     proc{ru.call({})}.must_raise NameError
@@ -305,6 +305,171 @@ describe Rack::Unreloader do
     m
   end
 
+  it "should setup autoloads if requested, handling reloads for changes" do
+    ru(:code=>"class App; def self.call(env) a = [autoload?(:A), Object.autoload?(:B)]; a << A if env[:a]; a << B if env[:b]; a end end", :autoload=>true).call({}).must_equal [nil, nil]
+    update_app('App::A = 1', 'spec/app-a.rb')
+    update_app('B = 3', 'spec/app-b.rb')
+    ru.call({}).must_equal [nil, nil]
+
+    ru.autoload('spec/app-a.rb'){'App::A'}
+    ru.call(:a=>true).must_equal [File.expand_path('spec/app-a.rb'), nil, 1]
+
+    update_app('App::A = 2', 'spec/app-a.rb')
+    update_app('B = 4', 'spec/app-b.rb')
+    ru.call(:a=>true).must_equal [nil, nil, 2]
+
+    ru.autoload('spec/app-b.rb'){:B}
+    ru.call(:a=>true, :b=>true).must_equal [nil, File.expand_path('spec/app-b.rb'), 2, 4]
+
+    update_app('App::A = 3', 'spec/app-a.rb')
+    update_app('B = 6', 'spec/app-b.rb')
+    ru.call(:a=>true, :b=>true).must_equal [nil, nil, 3, 6]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\ASetting up autoload for .*spec/app-a\.rb: App::A\z},
+              %r{\AAutoloaded file required, setting up reloading: .*spec/app-a\.rb\z},
+              %r{\AUnloading.*spec/app-a\.rb\z},
+              "Removed constant App::A",
+              %r{\ALoading.*spec/app-a\.rb\z},
+              %r{\ANew classes in .*spec/app-a\.rb: App::A\z},
+              %r{\ASetting up autoload for .*spec/app-b\.rb: B\z},
+              %r{\AAutoloaded file required, setting up reloading: .*spec/app-b\.rb\z},
+              %r{\AUnloading.*spec/app-a\.rb\z},
+              "Removed constant App::A",
+              %r{\ALoading.*spec/app-a\.rb\z},
+              %r{\ANew classes in .*spec/app-a\.rb: App::A\z},
+              %r{\AUnloading.*spec/app-b\.rb\z},
+              "Removed constant B",
+              %r{\ALoading.*spec/app-b\.rb\z},
+              %r{\ANew classes in .*spec/app-b\.rb: B\z}
+  end
+
+  it "should setup autoloads without a reloader" do
+    ru(:code=>"class App; def self.call(env) a = [autoload?(:A), Object.autoload?(:B)]; a << A if env[:a]; a << B if env[:b]; a end end", :autoload=>true, :reload=>false).call({}).must_equal [nil, nil]
+    update_app('App::A = 1', 'spec/app-a.rb')
+    update_app('B = 3', 'spec/app-b.rb')
+    ru.call({}).must_equal [nil, nil]
+
+    ru.autoload('spec/app-a.rb'){'App::A'}
+    ru.call(:a=>true).must_equal [File.expand_path('spec/app-a.rb'), nil, 1]
+
+    update_app('App::A = 2', 'spec/app-a.rb')
+    update_app('B = 4', 'spec/app-b.rb')
+    ru.call(:a=>true).must_equal [nil, nil, 1]
+
+    ru.autoload('spec/app-b.rb'){:B}
+    ru.call(:a=>true, :b=>true).must_equal [nil, File.expand_path('spec/app-b.rb'), 1, 4]
+
+    update_app('App::A = 3', 'spec/app-a.rb')
+    update_app('B = 6', 'spec/app-b.rb')
+    ru.call(:a=>true, :b=>true).must_equal [nil, nil, 1, 4]
+    log_match %r{\ASetting up autoload for .*spec/app-a\.rb: App::A\z},
+              %r{\ASetting up autoload for .*spec/app-b\.rb: B\z}
+  end
+
+  it "should setup autoloads without a reloader or a logger" do
+    ru(:code=>"class App; def self.call(env) a = [autoload?(:A), Object.autoload?(:B)]; a << A if env[:a]; a << B if env[:b]; a end end", :autoload=>true, :reload=>false, :logger=>nil).call({}).must_equal [nil, nil]
+    update_app('App::A = 1', 'spec/app-a.rb')
+    update_app('B = 3', 'spec/app-b.rb')
+    ru.call({}).must_equal [nil, nil]
+
+    ru.autoload('spec/app-a.rb'){'App::A'}
+    ru.call(:a=>true).must_equal [File.expand_path('spec/app-a.rb'), nil, 1]
+
+    update_app('App::A = 2', 'spec/app-a.rb')
+    update_app('B = 4', 'spec/app-b.rb')
+    ru.call(:a=>true).must_equal [nil, nil, 1]
+
+    ru.autoload('spec/app-b.rb'){:B}
+    ru.call(:a=>true, :b=>true).must_equal [nil, File.expand_path('spec/app-b.rb'), 1, 4]
+
+    update_app('App::A = 3', 'spec/app-a.rb')
+    update_app('B = 6', 'spec/app-b.rb')
+    ru.call(:a=>true, :b=>true).must_equal [nil, nil, 1, 4]
+  end
+
+  it "should convert autoloads to requires without :autoload option" do
+    ru(:code=>"class App; def self.call(env) [autoload?(:A), Object.autoload?(:B), (A if defined?(A)), (B if defined?(B))] end end")
+    ru.call({}).must_equal [nil, nil, nil, nil]
+    update_app('App::A = 1', 'spec/app-a.rb')
+    update_app('B = 3', 'spec/app-b.rb')
+    ru.call({}).must_equal [nil, nil, nil, nil]
+
+    ru.autoload('spec/app-a.rb'){'App::A'}
+    ru.call({}).must_equal [nil, nil, 1, nil]
+
+    update_app('App::A = 2', 'spec/app-a.rb')
+    update_app('B = 4', 'spec/app-b.rb')
+    ru.call({}).must_equal [nil, nil, 2, nil]
+
+    ru.autoload('spec/app-b.rb'){:B}
+    ru.call({}).must_equal [nil, nil, 2, 4]
+
+    update_app('App::A = 3', 'spec/app-a.rb')
+    update_app('B = 6', 'spec/app-b.rb')
+    ru.call({}).must_equal [nil, nil, 3, 6]
+    log_match %r{\ALoading.*spec/app\.rb\z},
+              %r{\ANew classes in .*spec/app\.rb: App\z},
+              %r{\ALoading.*spec/app-a\.rb\z},
+              %r{\ANew classes in .*spec/app-a\.rb: App::A\z},
+              %r{\AUnloading.*spec/app-a\.rb\z},
+              "Removed constant App::A",
+              %r{\ALoading.*spec/app-a\.rb\z},
+              %r{\ANew classes in .*spec/app-a\.rb: App::A\z},
+              %r{\ALoading.*spec/app-b\.rb\z},
+              %r{\ANew classes in .*spec/app-b\.rb: B\z},
+              %r{\AUnloading.*spec/app-a\.rb\z},
+              "Removed constant App::A",
+              %r{\ALoading.*spec/app-a\.rb\z},
+              %r{\ANew classes in .*spec/app-a\.rb: App::A\z},
+              %r{\AUnloading.*spec/app-b\.rb\z},
+              "Removed constant B",
+              %r{\ALoading.*spec/app-b\.rb\z},
+              %r{\ANew classes in .*spec/app-b\.rb: B\z}
+  end
+
+  it "should convert autoloads to requires without :autoload option and without a reloader" do
+    ru(:code=>"class App; def self.call(env) [autoload?(:A), Object.autoload?(:B), (A if defined?(A)), (B if defined?(B))] end end", :reload=>false).call({}).must_equal [nil, nil, nil, nil]
+    update_app('App::A = 1', 'spec/app-a.rb')
+    update_app('B = 3', 'spec/app-b.rb')
+    ru.call({}).must_equal [nil, nil, nil, nil]
+
+    ru.autoload('spec/app-a.rb'){'App::A'}
+    ru.call(:a=>true).must_equal [nil, nil, 1, nil]
+
+    update_app('App::A = 2', 'spec/app-a.rb')
+    update_app('B = 4', 'spec/app-b.rb')
+    ru.call(:a=>true).must_equal [nil, nil, 1, nil]
+
+    ru.autoload('spec/app-b.rb'){:B}
+    ru.call(:a=>true, :b=>true).must_equal [nil, nil, 1, 4]
+
+    update_app('App::A = 3', 'spec/app-a.rb')
+    update_app('B = 6', 'spec/app-b.rb')
+    ru.call(:a=>true, :b=>true).must_equal [nil, nil, 1, 4]
+    log_match 
+  end
+
+  it "should log when trying to setup autoloads for invalid constant names" do
+    ru(:autoload=>true, :reload=>false)
+    update_app('App::A = 1', 'spec/app-a.rb')
+    ru.autoload('spec/app-a.rb'){'a'}
+    log_match %r{\ASetting up autoload for .*spec/app-a\.rb: a\z},
+              "Invalid constant name: a"
+  end
+
+  it "should silently ignore autoloads for invalid constant names if no logger present" do
+    ru(:autoload=>true, :reload=>false, :logger=>nil)
+    update_app('App::A = 1', 'spec/app-a.rb')
+    ru.autoload('spec/app-a.rb'){'a'}
+  end
+
+  it "should raise for autoload usage without block" do
+    ru(:autoload=>true, :reload=>false, :logger=>nil)
+    update_app('App::A = 1', 'spec/app-a.rb')
+    proc{ru.autoload('spec/app-a.rb')}.must_raise ArgumentError
+  end
+
   it "should handle usage without a logger" do
     def self.logger; nil end
     ru.call({}).must_equal [1]
@@ -536,6 +701,108 @@ describe Rack::Unreloader do
                 %r{\AUnloading .*/spec/app.rb\z},
                 %r{\ARemoved constant App\z}
       Object.send(:remove_const, :Deletes)
+    end
+
+    it "should handle autoloads for directories" do
+      ru(:code=>"class App; def self.call(env) a = [autoload?(:A), autoload?(:B)]; a << A if env[:a]; a << B if env[:b]; a end end", :autoload=>true).call({}).must_equal [nil, nil]
+      ru.autoload('spec/dir'){|f| "App::#{File.basename(f)[0...-3].capitalize}"}
+      ru.call({}).must_equal [nil, nil]
+      update_app('App::A = 1', 'spec/dir/a.rb')
+      ru.call({}).must_equal [File.expand_path('spec/dir/a.rb'), nil]
+      update_app('App::B = 3', 'spec/dir/b.rb')
+      ru.call({}).must_equal [File.expand_path('spec/dir/a.rb'), File.expand_path('spec/dir/b.rb')]
+
+      ru.call(:a=>true).must_equal [File.expand_path('spec/dir/a.rb'), File.expand_path('spec/dir/b.rb'), 1]
+
+      update_app('App::A = 2', 'spec/dir/a.rb')
+      update_app('App::B = 4', 'spec/dir/b.rb')
+      ru.call(:a=>true).must_equal [nil, File.expand_path('spec/dir/b.rb'), 2]
+
+      ru.call(:a=>true, :b=>true).must_equal [nil, File.expand_path('spec/dir/b.rb'), 2, 4]
+
+      update_app('App::A = 3', 'spec/dir/a.rb')
+      update_app('App::B = 6', 'spec/dir/b.rb')
+      ru.call(:a=>true, :b=>true).must_equal [nil, nil, 3, 6]
+
+      file_delete('spec/dir/b.rb')
+      ru.call(:a=>true).must_equal [nil, nil, 3]
+
+      update_app('App::B = 7', 'spec/dir/b.rb')
+      ru.call(:a=>true).must_equal [nil, File.expand_path('spec/dir/b.rb'), 3]
+
+      file_delete('spec/dir/b.rb')
+      ru.call(:a=>true).must_equal [nil, nil, 3]
+
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z},
+                %r{\ASetting up autoload for .*spec/dir/a\.rb: App::A\z},
+                %r{\ASetting up autoload for .*spec/dir/b\.rb: App::B\z},
+                %r{\AAutoloaded file required, setting up reloading: .*spec/dir/a\.rb\z},
+                %r{\AUnloading.*spec/dir/a\.rb\z},
+                "Removed constant App::A",
+                %r{\ALoading.*spec/dir/a\.rb\z},
+                %r{\ANew classes in .*spec/dir/a\.rb: App::A\z},
+                %r{\AAutoloaded file required, setting up reloading: .*spec/dir/b\.rb\z},
+                %r{\AUnloading.*spec/dir/a\.rb\z},
+                "Removed constant App::A",
+                %r{\ALoading.*spec/dir/a\.rb\z},
+                %r{\ANew classes in .*spec/dir/a\.rb: App::A\z},
+                %r{\AUnloading.*spec/dir/b\.rb\z},
+                "Removed constant App::B",
+                %r{\ALoading.*spec/dir/b\.rb\z},
+                %r{\ANew classes in .*spec/dir/b\.rb: App::B\z},
+                %r{\AUnloading.*spec/dir/b\.rb\z},
+                "Removed constant App::B",
+                %r{\ASetting up autoload for .*spec/dir/b\.rb: App::B\z},
+                %r{\ARemoving autoload for .*spec/dir/b\.rb: App::B\z}
+    end
+
+    it "should handle automatic reloading for directories without autoloads only after file is loaded otherwise" do
+      ru(:code=>"class App; def self.call(env) require './spec/dir/a.rb' if env[:a]; [(A if defined?(A))] end end", :autoload=>true).call({}).must_equal [nil]
+      ru.autoload('spec/dir'){}
+      ru.call({}).must_equal [nil]
+
+      update_app('App::A = 1', 'spec/dir/a.rb')
+      ru.call({}).must_equal [nil]
+
+      update_app('App::A = 2', 'spec/dir/a.rb')
+      ru.call(:a=>true).must_equal [2]
+
+      update_app('App.send(:remove_const, :A); App::A = 3', 'spec/dir/a.rb')
+      ru.call({}).must_equal [3]
+
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z},
+                %r{\AAutoloaded file required, setting up reloading: .*spec/dir/a\.rb\z},
+                %r{\AUnloading.*spec/dir/a\.rb\z},
+                %r{\ALoading.*spec/dir/a\.rb\z}
+    end
+
+    it "should remove autoload files without constants from $LOADED_FEATURES when autoloading the file" do
+      code = "class App; RU.autoload('spec/dir'){}; def self.call(env) require './spec/dir/a.rb' if env[:a]; [(A if defined?(A))] end end"
+      ru(:code=>code, :autoload=>true).call({}).must_equal [nil]
+
+      update_app('App::A = 1', 'spec/dir/a.rb')
+      ru.call({}).must_equal [nil]
+
+      update_app('App::A = 2', 'spec/dir/a.rb')
+      ru.call(:a=>true).must_equal [2]
+
+      update_app('App.send(:remove_const, :A) if defined?(App::A); App::A = 3', 'spec/dir/a.rb')
+      ru.call({}).must_equal [3]
+
+      update_app(code)
+      ru.call(:a=>true).must_equal [3]
+
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z},
+                %r{\AAutoloaded file required, setting up reloading: .*spec/dir/a\.rb\z},
+                %r{\AUnloading.*spec/dir/a\.rb\z},
+                %r{\ALoading.*spec/dir/a\.rb\z},
+                %r{\AUnloading.*spec/app\.rb\z},
+                "Removed constant App",
+                %r{\ALoading.*spec/app\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z}
     end
   end
 end

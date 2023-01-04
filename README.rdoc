@@ -195,7 +195,7 @@ class.
 
 == Requiring
 
-Rack::Unreloader#require is a little different than require in that it takes
+Rack::Unreloader#require is a little different than Kernel#require in that it takes
 a file glob, not a normal require path.  For that reason, you must specify
 the extension when requiring the file, and it will only look in the current
 directory by default:
@@ -252,6 +252,45 @@ In some cases, you may want to pass a block to require, but inside the block
 decide that instead of specifying the constants, ObjectSpace should be used to
 automatically determine the constants loaded. You can specify this by having the
 block return the :ObjectSpace symbol.
+
+=== Autoload
+
+To further speed things up in development mode, or when only running a subset of
+tests, it can be helpful to autoload files instead of require them, so that if
+the related constants are not accessed, you don't need to pay the cost of loading
+the related files.  To enable autoloading, pass the +:autoload+ option when
+creating the reloader:
+
+  Unreloader = Rack::Unreloader.new(autoload: true){App}
+
+Then, you can call +autoload+ instead of +require+:
+
+  Unreloader.autoload('models'){|f| File.basename(f).sub(/\.rb\z/, '').capitalize}
+
+This will monitor the models directory for files, setting up autoloads for each
+file.  After the file has been loaded, normal reloading will happen for the
+file. Note that for +autoload+, a block is required because the constant names
+are needed before loading the file to setup the autoload.
+
+If the <tt>reload: false</tt> option is given when creating the reloader,
+autoloads will still be setup by +autoload+, but no reloading will happen. This
+can be useful when testing subsets of an application.  When testing subsets of
+an application, you don't need reloading, but you can benefit from autoloading,
+so parts of the application you are not testing are not loaded.
+
+If you do not pass the +:autoload+ option when creating the reloader, then calls
+to +autoload+ will implicitly be transformed to calls to +require+.  This makes
+it possible to use the same +autoload+ call in all cases, and handle four
+separate scenarios:
+
+1. Autoload then reload: Fast development mode startup, loading the minimum
+   number of files, but reloading if those files are changed
+2. Autoload without reload: Useful for faster testing of a subset of an
+   application, so the untested subsets is not loaded.
+3. Require then reload: Slower development mode startup, but have entire
+   application loaded before accepting requests
+4. Require without reload: Normal production/testing mode with nothing autoloaded
+   or reloaded
 
 == Usage Outside Rack
 

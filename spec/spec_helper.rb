@@ -89,9 +89,13 @@ class Minitest::Spec
 
   after do
     ru.reloader.clear! if ru.reloader
+    dirname = File.dirname(__FILE__)
+    keep_files = %w'unreloader_spec.rb spec_helper.rb'
+    $LOADED_FEATURES.delete_if{|f| f.start_with?(dirname) && !keep_files.include?(File.basename(f))}
     Object.send(:remove_const, :RU)
     Object.send(:remove_const, :App) if defined?(::App)
     Object.send(:remove_const, :App2) if defined?(::App2)
+    Object.send(:remove_const, :B) if defined?(::B)
     Dir['spec/app*.rb'].each{|f| File.delete(f)}
   end
 end

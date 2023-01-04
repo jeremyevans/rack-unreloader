@@ -1,3 +1,7 @@
+= master
+
+* Support :autoload option and autoload method for autoloading files and directories (jeremyevans)
+
 = 2.0.0 (2022-06-23)
 
 * Fix TypeError being raised when requiring a file results in an error (jeremyevans)
