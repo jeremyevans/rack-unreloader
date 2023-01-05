@@ -137,6 +137,18 @@ module Rack
       @app_block.call.call(env)
     end
 
+    # Whether the unreloader is setup for reloading. If false, no reloading
+    # is done after the initial require.
+    def reload?
+      !!@reloader
+    end
+
+    # Whether the unreloader is setup for autoloading. If false, autoloads
+    # are treated as requires.
+    def autoload?
+      !!@autoload
+    end
+
     # Add a file glob or array of file globs to monitor for changes.
     # Options:
     # :delete_hook :: When a file being monitored is deleted, call

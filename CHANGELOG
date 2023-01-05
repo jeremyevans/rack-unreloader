@@ -1,5 +1,7 @@
 = master
 
+* Add reload? and autoload? methods for determining what mode the unreloader is operating in (jeremyevans)
+
 * Support :autoload option and autoload method for autoloading files and directories (jeremyevans)
 
 = 2.0.0 (2022-06-23)

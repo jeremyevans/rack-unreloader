@@ -477,6 +477,22 @@ describe Rack::Unreloader do
     ru.call({}).must_equal [2]
   end
 
+  it "should have reload? return true when reloading will happen" do
+    ru.reload?.must_equal true
+  end
+
+  it "should have reload? return false when reloading is disabled" do
+    ru(:reload=>false).reload?.must_equal false
+  end
+
+  it "should have autoload? return false when autoloading will not happen" do
+    ru.autoload?.must_equal false
+  end
+
+  it "should have autoload? return true when autoloading will happen" do
+    ru(:autoload=>true).autoload?.must_equal true
+  end
+
   it "should log syntax errors when requiring" do
     proc do
       ru(:code=>'module App')
