@@ -794,7 +794,7 @@ describe Rack::Unreloader do
                 %r{\ALoading.*spec/dir/a\.rb\z}
     end
 
-    it "should remove autoload files without constants from $LOADED_FEATURES when autoloading the file" do
+    it "should handle autoload files without constants from $LOADED_FEATURES when autoloading the file" do
       code = "class App; RU.autoload('spec/dir'){}; def self.call(env) require './spec/dir/a.rb' if env[:a]; [(A if defined?(A))] end end"
       ru(:code=>code, :autoload=>true).call({}).must_equal [nil]
 
@@ -820,5 +820,19 @@ describe Rack::Unreloader do
                 %r{\ALoading.*spec/app\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z}
     end unless defined?(JRUBY_VERSION) && JRUBY_VERSION >= '9.3'
+
+    it "should handle removing files not yet loaded without constants from $LOADED_FEATURES when files are deleted" do
+      code = "class App; RU.autoload('spec/dir'){}; def self.call(env) end end"
+      ru(:code=>code, :autoload=>true).call({}).must_be_nil
+
+      update_app('App::A = 1', 'spec/dir/a.rb')
+      ru.call({}).must_be_nil
+
+      file_delete('spec/dir/a.rb')
+      ru.call({}).must_be_nil
+
+      log_match %r{\ALoading.*spec/app\.rb\z},
+                %r{\ANew classes in .*spec/app\.rb: App\z}
+    end
   end
 end
