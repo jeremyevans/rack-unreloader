@@ -1,4 +1,4 @@
-= master
+= 2.1.0 (2023-01-18)
 
 * Add reload? and autoload? methods for determining what mode the unreloader is operating in (jeremyevans)
 
