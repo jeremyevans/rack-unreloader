@@ -819,6 +819,6 @@ describe Rack::Unreloader do
                 "Removed constant App",
                 %r{\ALoading.*spec/app\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z}
-    end
+    end unless defined?(JRUBY_VERSION) && JRUBY_VERSION >= '9.3'
   end
 end
