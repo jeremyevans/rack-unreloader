@@ -28,7 +28,7 @@ task :default => :spec
 RDOC_DEFAULT_OPTS = ["--quiet", "--line-numbers", "--inline-source", '--title', 'Rack::Unreloader: Reload application when files change, unloading constants first']
 
 begin
-  gem 'hanna-nouveau'
+  gem 'hanna'
   RDOC_DEFAULT_OPTS.concat(['-f', 'hanna'])
 rescue Gem::LoadError
 end
