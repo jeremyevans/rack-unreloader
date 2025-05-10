@@ -25,19 +25,24 @@ task :default => :spec
 
 ### RDoc
 
-RDOC_DEFAULT_OPTS = ["--quiet", "--line-numbers", "--inline-source", '--title', 'Rack::Unreloader: Reload application when files change, unloading constants first']
+desc "Generate rdoc"
+task :rdoc do
+  rdoc_dir = "rdoc"
+  rdoc_opts = ["--line-numbers", "--inline-source", '--title', 'Rack::Unreloader: Reload application when files change, unloading constants first']
 
-begin
-  gem 'hanna'
-  RDOC_DEFAULT_OPTS.concat(['-f', 'hanna'])
-rescue Gem::LoadError
-end
+  begin
+    gem 'hanna'
+    rdoc_opts.concat(['-f', 'hanna'])
+  rescue Gem::LoadError
+  end
 
-require "rdoc/task"
-RDOC_OPTS = RDOC_DEFAULT_OPTS + ['--main', 'README.rdoc']
+  rdoc_opts.concat(['--main', 'README.rdoc', "-o", rdoc_dir] +
+    %w"README.rdoc CHANGELOG MIT-LICENSE" +
+    Dir["lib/**/*.rb"]
+  )
 
-RDoc::Task.new do |rdoc|
-  rdoc.rdoc_dir = "rdoc"
-  rdoc.options += RDOC_OPTS
-  rdoc.rdoc_files.add %w"README.rdoc CHANGELOG MIT-LICENSE lib/**/*.rb"
+  FileUtils.rm_rf(rdoc_dir)
+
+  require "rdoc"
+  RDoc::RDoc.new.document(rdoc_opts)
 end
