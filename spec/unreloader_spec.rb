@@ -819,7 +819,7 @@ describe Rack::Unreloader do
                 "Removed constant App",
                 %r{\ALoading.*spec/app\.rb\z},
                 %r{\ANew classes in .*spec/app\.rb: App\z}
-    end unless defined?(JRUBY_VERSION) && JRUBY_VERSION >= '9.3'
+    end unless defined?(JRUBY_VERSION) && Gem::Version.new(JRUBY_VERSION) >= Gem::Version.new('9.3')
 
     it "should handle removing files not yet loaded without constants from $LOADED_FEATURES when files are deleted" do
       code = "class App; RU.autoload('spec/dir'){}; def self.call(env) end end"
